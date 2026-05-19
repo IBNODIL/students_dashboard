@@ -6,9 +6,9 @@ import bcryptjs from "bcryptjs";
 const prisma = getPrisma();
 
 const betterAuthBaseURL =
-  process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP || "http://localhost:3000";
+  process.env.BETTER_AUTH_URL;
 const betterAuthSecret =
-  process.env.BETTER_AUTH_SECRET || process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "development-secret";
+  process.env.BETTER_AUTH_SECRET;
 
 if (!betterAuthBaseURL) {
   throw new Error(
@@ -26,7 +26,7 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
-  baseURL: betterAuthBaseURL,
+  baseURL: process.env.BETTER_AUTH_URL,
   secret: betterAuthSecret,
   emailAndPassword: {
     enabled: true,
