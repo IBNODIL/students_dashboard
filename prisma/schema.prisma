@@ -1,0 +1,118 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Teacher {
+  id      String   @id @map("id")
+  name    String   @map("name")
+  lessons Lesson[]
+
+  @@map("teachers")
+}
+
+model Group {
+  id      Int       @id @default(autoincrement()) @map("id")
+  name    String    @unique @map("name")
+  lessons Lesson[]
+
+  @@map("groups")
+}
+
+model Student {
+  studentId   Int            @id @map("student_id")
+  name        String         @map("name")
+  jduId       String?        @map("jdu_id")
+  lessons     Lesson[]
+  attendances Attendance[]
+
+  @@map("students")
+}
+
+model Lesson {
+  id                String  @id @default(cuid()) @map("id")
+  studentId         Int     @map("student_id")
+  teacherId         String  @map("teacher_id")
+  groupId           Int     @map("group_id")
+  subjectName       String  @map("subject_name")
+  totalCurrentGrade Float   @default(0) @map("total_current_grade")
+  totalFullGrade    Float   @default(0) @map("total_full_grade")
+  percentageGrade   Float   @default(0) @map("percentage_grade")
+  assignments       Json    @default("[]") @map("assignments")
+  attendances       Json    @default("[]") @map("attendances")
+
+  student Student @relation(fields: [studentId], references: [studentId], onDelete: Cascade)
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  group   Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, subjectName, teacherId, groupId], map: "lessons_student_subject_teacher_group_key")
+  @@map("lessons")
+}
+
+model Attendance {
+  id        String   @id @default(cuid()) @map("id")
+  studentId Int      @map("student_id")
+  inside    Int      @map("inside")
+  timeLog   DateTime? @map("time_log")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  student Student @relation(fields: [studentId], references: [studentId], onDelete: Cascade)
+
+  @@map("attendances")
+}
+
+// Better Auth Models
+model User {
+  id            String    @id @default(cuid()) @map("id")
+  email         String    @unique @map("email")
+  emailVerified Boolean   @default(false) @map("email_verified")
+  password      String?   @map("password")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  
+  sessions  Session[]
+  accounts  Account[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid()) @map("id")
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+  @@map("sessions")
+}
+
+model Account {
+  id                 String  @id @default(cuid()) @map("id")
+  userId             String  @map("user_id")
+  type               String  @map("type")
+  provider           String  @map("provider")
+  providerAccountId  String  @map("provider_account_id")
+  refreshToken       String? @map("refresh_token") @db.Text
+  accessToken        String? @map("access_token") @db.Text
+  expiresAt          Int?    @map("expires_at")
+  tokenType          String? @map("token_type")
+  scope              String? @map("scope")
+  idToken            String? @map("id_token") @db.Text
+  sessionState       String? @map("session_state")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
