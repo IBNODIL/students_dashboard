@@ -1,2 +1,4 @@
-export const POST = () => new Response("Not Found", { status: 404 });
-export const GET = () => new Response("Not Found", { status: 404 });
+import { auth } from "@/lib/auth";
+import { toNextJsHandler } from "better-auth/next-js";
+
+export const { GET, POST } = toNextJsHandler(auth);

@@ -26,24 +26,23 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+
   baseURL: process.env.BETTER_AUTH_URL,
   secret: betterAuthSecret,
+
   emailAndPassword: {
     enabled: true,
-    autoSignUpEmail: false, // Require manual verification
+    autoSignUpEmail: false,
   },
+
   session: {
-    expiresIn: 60 * 60 * 24 * 7, // 7 days
-    updateAge: 60 * 60 * 24, // Update session every 24 hours
-    cookieCache: {
-      enabled: true,
-      maxAge: 5 * 60, // 5 minutes
-    },
+    expiresIn: 60 * 60 * 24 * 7,
+    updateAge: 60 * 60 * 24,
   },
+
   user: {
     changeEmail: {
       enabled: false,
-      sendVerificationEmail: false,
     },
   },
 });
