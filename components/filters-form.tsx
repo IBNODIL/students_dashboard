@@ -3,7 +3,6 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -51,22 +50,16 @@ interface FiltersFormProps {
 
 export function FiltersForm({ onFilterChange, isLoading }: FiltersFormProps) {
   const { t } = useLanguage();
-  const { register, watch, setValue, reset, getValues } =
+  const { register, watch, setValue, reset, getValues, handleSubmit } =
     useForm<FilterValues>({
       resolver: zodResolver(filterSchema),
       defaultValues,
     });
 
-  // Debounce: emit filter changes after user stops typing
-  useEffect(() => {
-    const subscription = watch((values) => {
-      const handler = setTimeout(() => {
-        onFilterChange(values as FilterValues);
-      }, 350);
-      return () => clearTimeout(handler);
-    });
-    return () => subscription.unsubscribe();
-  }, [watch, onFilterChange]);
+  // Qidiruv tugmasi bosilganda yoki Enter bosilganda ishlaydi
+  const onSubmit = (values: FilterValues) => {
+    onFilterChange(values);
+  };
 
   const handleReset = () => {
     reset(defaultValues);
@@ -80,7 +73,11 @@ export function FiltersForm({ onFilterChange, isLoading }: FiltersFormProps) {
   );
 
   return (
-    <div className="rounded-xl border bg-card p-4 shadow-lg space-y-4">
+    // Grid elementlari form ichiga olindi, onSubmit hodisasi biriktirildi
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="rounded-xl border bg-card p-4 shadow-lg space-y-4"
+    >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Search className="h-4 w-4 text-muted-foreground" />
@@ -91,17 +88,30 @@ export function FiltersForm({ onFilterChange, isLoading }: FiltersFormProps) {
             </span>
           )}
         </div>
-        {hasActiveFilters && (
+        <div className="flex align-center">
           <Button
-            variant="ghost"
+            type="submit"
             size="sm"
-            onClick={handleReset}
-            className="h-7 gap-1 text-xs"
+            className="h-8 px-4 gap-2 text-xs font-medium mr-2"
+            disabled={isLoading}
           >
-            <X className="h-3 w-3" />
-            {t.filtersReset}
+            <Search className="h-3.5 w-3.5" />
+            {t.searchButton || "Qidirish"}
           </Button>
-        )}
+
+          {hasActiveFilters && (
+            <Button
+              type="button" // Reset tugmasi formani yuborib yubormasligi uchun type="button" qilindi
+              variant="ghost"
+              size="sm"
+              onClick={handleReset}
+              className="h-7 gap-1 text-xs bg-rose-500 text-white"
+            >
+              <X className="h-3 w-3" />
+              {t.filtersReset}
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
@@ -262,6 +272,6 @@ export function FiltersForm({ onFilterChange, isLoading }: FiltersFormProps) {
           </Select>
         </div>
       </div>
-    </div>
+    </form>
   );
 }

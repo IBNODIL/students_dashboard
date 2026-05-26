@@ -8,24 +8,15 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { StudentWithCourses, Course } from "@/lib/types";
+import type { StudentWithCourses } from "@/lib/types";
 import { useLanguage } from "@/contexts/language-context";
 import {
   ChevronLeft,
   ChevronRight,
   Loader2,
   User,
-  BookOpen,
   GraduationCap,
   ExternalLink,
 } from "lucide-react";
@@ -391,62 +382,6 @@ function StudentPanel({ student }: { student: StudentWithCourses }) {
                 String(selectedCourse.teacher_id)
               )}
             </div>
-          </div>
-
-          {/* Attendance records table */}
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/10 hover:bg-muted/10">
-                  <TableHead className="text-xs w-[130px]">{t.colDate}</TableHead>
-                  <TableHead className="text-xs text-center w-[80px]">
-                    {t.colPeriod}
-                  </TableHead>
-                  <TableHead className="text-xs text-center w-[70px]">
-                    {t.colRoom}
-                  </TableHead>
-                  <TableHead className="text-xs min-w-[130px]">{t.colStatus}</TableHead>
-                  <TableHead className="text-xs text-center w-[60px]">
-                    {t.colPoints}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedAtts.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      className="text-center text-xs text-muted-foreground py-4"
-                    >
-                      {t.noRecords}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  sortedAtts.map((att, i) => (
-                    <TableRow
-                      key={`${att.date}-${att.lesson_time}-${i}`}
-                      className="text-sm"
-                    >
-                      <TableCell className="text-xs tabular-nums">
-                        {formatDate(att.date, t.dateLocale)}
-                      </TableCell>
-                      <TableCell className="text-center text-xs tabular-nums">
-                        P{att.lesson_time}
-                      </TableCell>
-                      <TableCell className="text-center text-xs tabular-nums">
-                        {att.lesson_room}
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={att.status} />
-                      </TableCell>
-                      <TableCell className="text-center text-xs font-semibold tabular-nums">
-                        {att.status === "L" ? "0.5" : att.points}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
           </div>
 
           {/* Grades section */}
