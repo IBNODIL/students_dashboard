@@ -12,6 +12,13 @@ export interface Student {
   subject_name: string
   teacher_name: string
   teacher_id: string
+
+  // ADD THESE:
+  totalCurrentGrade?: number
+  totalFullGrade?: number
+  percentageGrade?: number
+  assignments?: unknown
+
   attendances: AttendanceRecord[]
 }
 

@@ -30,39 +30,6 @@ interface StudentPanelsProps {
   isLoading?: boolean;
 }
 
-const STATUS_CLASSES: Record<string, string> = {
-  P: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-700",
-  L: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-amber-200 dark:border-amber-700",
-  U: "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300 border-rose-200 dark:border-rose-700",
-  E: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border-blue-200 dark:border-blue-700",
-};
-
-function StatusBadge({ status }: { status: string }) {
-  const { t } = useLanguage();``
-  const STATUS_LABELS: Record<string, string> = {
-    P: t.statusPresent,
-    L: t.statusLate,
-    U: t.statusAbsent,
-    E: t.statusExcused,
-  };
-  const label = STATUS_LABELS[status];
-  const className = STATUS_CLASSES[status];
-  if (!label)
-    return (
-      <Badge variant="outline" className="text-xs text-muted-foreground">
-        —
-      </Badge>
-    );
-  return (
-    <Badge
-      variant="outline"
-      className={cn("text-xs font-semibold border", className)}
-    >
-      {status} · {label}
-    </Badge>
-  );
-}
-
 function MiniProgressBar({ pct, color }: { pct: number; color: string }) {
   return (
     <div className="flex items-center gap-1.5">
@@ -75,17 +42,6 @@ function MiniProgressBar({ pct, color }: { pct: number; color: string }) {
       <span className="text-xs tabular-nums">{pct.toFixed(1)}%</span>
     </div>
   );
-}
-
-function formatDate(dateStr: string, locale: string) {
-  if (!dateStr) return "—";
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  return d.toLocaleDateString(locale, {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 function formatTime(timeStr?: string | null): string {
@@ -143,9 +99,6 @@ function StudentPanel({ student }: { student: StudentWithCourses }) {
     }
   };
 
-  const sortedAtts = [...selectedCourse.attendances].sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-  );
 
   // Calculate overall stats across all courses for this student
   const overallStats = {
@@ -156,11 +109,10 @@ function StudentPanel({ student }: { student: StudentWithCourses }) {
     total_points: student.courses.reduce((sum, c) => sum + c.total_points, 0),
     max_points: student.courses.reduce((sum, c) => sum + c.max_points, 0),
   };
-  
-  const overallAttendancePct = overallStats.max_points > 0 
-    ? (overallStats.total_points / overallStats.max_points) * 100 
+
+  const overallAttendancePct = overallStats.max_points > 0
+    ? (overallStats.total_points / overallStats.max_points) * 100
     : 0;
-  const overallAbsencePct = 100 - overallAttendancePct;
 
   const totalLessons = student.courses.reduce(
     (sum, c) => sum + c.attendances.length,
@@ -357,6 +309,24 @@ function StudentPanel({ student }: { student: StudentWithCourses }) {
 
           {/* Progress bars */}
           <div className="px-4 py-3 bg-muted/20 flex flex-wrap gap-x-6 gap-y-2">
+            {selectedCourse.echo_grades && (
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Grade
+                </span>
+
+                <MiniProgressBar
+                  pct={selectedCourse.echo_grades.percentage}
+                  color={
+                    selectedCourse.echo_grades.percentage >= 80
+                      ? "bg-emerald-500"
+                      : selectedCourse.echo_grades.percentage >= 60
+                        ? "bg-amber-500"
+                        : "bg-rose-500"
+                  }
+                />
+              </div>
+            )}
             <div className="flex flex-col gap-1">
               <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                 {t.attendanceRate}
@@ -383,62 +353,9 @@ function StudentPanel({ student }: { student: StudentWithCourses }) {
               )}
             </div>
           </div>
-
-          {/* Grades section */}
-          {student.gradesData && (
-            <div className="border-t px-4 py-4 space-y-4">
-              <div>
-                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
-                  Academic Performance
-                </h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Credits Passed</p>
-                    <p className="text-sm font-semibold">
-                      {student.gradesData.totals.total_credits_passed} / {student.gradesData.totals.total_credits_graded}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Pass Rate</p>
-                    <p className={cn(
-                      "text-sm font-semibold",
-                      student.gradesData.totals.percentage_passed >= 80
-                        ? "text-emerald-600 dark:text-emerald-400"
-                        : student.gradesData.totals.percentage_passed >= 60
-                        ? "text-amber-600 dark:text-amber-400"
-                        : "text-rose-600 dark:text-rose-400"
-                    )}>
-                      {student.gradesData.totals.percentage_passed.toFixed(1)}%
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* By Department Breakdown */}
-              {Object.keys(student.gradesData.by_department).length > 0 && (
-                <div>
-                  <h5 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-                    By Department
-                  </h5>
-                  <div className="space-y-2 text-xs">
-                    {Object.entries(student.gradesData.by_department)
-                      .filter(([_, dept]) => dept.total_credits_graded > 0)
-                      .map(([deptName, dept]) => (
-                        <div key={deptName} className="flex items-center justify-between p-2 rounded bg-muted/50">
-                          <span className="font-medium">{deptName}</span>
-                          <span className="text-muted-foreground">
-                            {dept.total_credits_passed}/{dept.total_credits_graded} ({dept.percentage_passed.toFixed(0)}%)
-                          </span>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </AccordionContent>
-    </AccordionItem>
+    </AccordionItem >
   );
 }
 

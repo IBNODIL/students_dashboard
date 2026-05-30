@@ -114,7 +114,16 @@ export function buildStudentProfileFromRecords(
       }
     }
 
-    courses.push(buildCourse(courseRecords, allAtts, null));
+    const firstCourse = courseRecords[0];
+
+    const echo: EchoGradesBlock = {
+      total_current_grade: firstCourse.totalCurrentGrade ?? 0,
+      total_full_grade: firstCourse.totalFullGrade ?? 0,
+      percentage: firstCourse.percentageGrade ?? 0,
+      assignments: parseJsonAssignments(firstCourse.assignments),
+    };
+
+    courses.push(buildCourse(courseRecords, allAtts, echo));
   }
 
   const groupLabels = [...new Set(records.map((r) => r.group_name))]
@@ -459,8 +468,15 @@ export function filterToGroupedProfiles(
       )
         continue;
 
+      const echo: EchoGradesBlock = {
+        total_current_grade: courseFirstRecord.totalCurrentGrade ?? 0,
+        total_full_grade: courseFirstRecord.totalFullGrade ?? 0,
+        percentage: courseFirstRecord.percentageGrade ?? 0,
+        assignments: parseJsonAssignments(courseFirstRecord.assignments),
+      };
+
       courses.push(
-        buildCourse(courseRecords, allAtts, null)
+        buildCourse(courseRecords, allAtts, echo)
       );
     }
 
@@ -506,6 +522,12 @@ export async function loadRawStudentsForAggregation(): Promise<Student[]> {
     subject_name: lesson.subjectName,
     teacher_name: lesson.teacher.name,
     teacher_id: lesson.teacherId,
+
+    totalCurrentGrade: lesson.totalCurrentGrade,
+    totalFullGrade: lesson.totalFullGrade,
+    percentageGrade: lesson.percentageGrade,
+    assignments: lesson.assignments,
+
     attendances: parseJsonAttendances(lesson.attendances),
   }));
 }
