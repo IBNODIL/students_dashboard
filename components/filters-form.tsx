@@ -1,10 +1,18 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
 import {
   Select,
   SelectContent,
@@ -46,15 +54,71 @@ const defaultValues: FilterValues = {
 interface FiltersFormProps {
   onFilterChange: (values: FilterValues) => void;
   isLoading?: boolean;
+  nameOptions?: string[];
+  studentIdOptions?: string[];
+  groupOptions?: string[];
+  subjectOptions?: string[];
+  teacherOptions?: string[];
+  teacherIdOptions?: string[];
+  roomOptions?: string[];
 }
 
-export function FiltersForm({ onFilterChange, isLoading }: FiltersFormProps) {
+export function FiltersForm({
+  onFilterChange,
+  isLoading,
+  nameOptions = [],
+  studentIdOptions = [],
+  groupOptions = [],
+  subjectOptions = [],
+  teacherOptions = [],
+  teacherIdOptions = [],
+  roomOptions = [],
+}: FiltersFormProps) {
   const { t } = useLanguage();
-  const { register, watch, setValue, reset, getValues, handleSubmit } =
+  const { control, register, watch, setValue, reset, getValues, handleSubmit } =
     useForm<FilterValues>({
       resolver: zodResolver(filterSchema),
       defaultValues,
     });
+
+  const renderComboboxField = (
+    name: keyof FilterValues,
+    id: string,
+    label: string,
+    placeholder: string,
+    options: string[]
+  ) => (
+    <div className="space-y-1.5">
+      <Label htmlFor={id} className="text-xs text-muted-foreground">
+        {label}
+      </Label>
+      <Controller
+        name={name}
+        control={control}
+        render={({ field }) => (
+          <Combobox items={options} value={field.value} onValueChange={field.onChange}>
+            <ComboboxInput
+              id={id}
+              placeholder={placeholder}
+              className="h-8 text-sm"
+              {...field}
+              disabled={isLoading}
+            />
+            <ComboboxContent>
+              <ComboboxEmpty>No items found.</ComboboxEmpty>
+              <ComboboxList
+                renderItem={(item) => (
+                  <ComboboxItem key={item} value={item}>
+                    {item}
+                  </ComboboxItem>
+                )}
+              />
+            </ComboboxContent>
+          </Combobox>
+        )}
+      />
+    </div>
+  );
 
   // Qidiruv tugmasi bosilganda yoki Enter bosilganda ishlaydi
   const onSubmit = (values: FilterValues) => {
@@ -115,89 +179,53 @@ export function FiltersForm({ onFilterChange, isLoading }: FiltersFormProps) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-        {/* Full Name */}
-        <div className="space-y-1.5">
-          <Label htmlFor="name" className="text-xs text-muted-foreground">
-            {t.labelFullName}
-          </Label>
-          <Input
-            id="name"
-            placeholder={t.placeholderName}
-            className="h-8 text-sm"
-            {...register("name")}
-            disabled={isLoading}
-          />
-        </div>
+        {renderComboboxField(
+          "name",
+          "name",
+          t.labelFullName,
+          t.placeholderName,
+          nameOptions
+        )}
 
-        {/* Student ID */}
-        <div className="space-y-1.5">
-          <Label htmlFor="studentId" className="text-xs text-muted-foreground">
-            {t.labelStudentId}
-          </Label>
-          <Input
-            id="studentId"
-            placeholder={t.placeholderStudentId}
-            className="h-8 text-sm"
-            {...register("studentId")}
-            disabled={isLoading}
-          />
-        </div>
+        {renderComboboxField(
+          "studentId",
+          "studentId",
+          t.labelStudentId,
+          t.placeholderStudentId,
+          studentIdOptions
+        )}
 
-        {/* Group */}
-        <div className="space-y-1.5">
-          <Label htmlFor="group" className="text-xs text-muted-foreground">
-            {t.labelGroup}
-          </Label>
-          <Input
-            id="group"
-            placeholder={t.placeholderGroup}
-            className="h-8 text-sm"
-            {...register("group")}
-            disabled={isLoading}
-          />
-        </div>
+        {renderComboboxField(
+          "group",
+          "group",
+          t.labelGroup,
+          t.placeholderGroup,
+          groupOptions
+        )}
 
-        {/* Subject */}
-        <div className="space-y-1.5">
-          <Label htmlFor="subject" className="text-xs text-muted-foreground">
-            {t.labelSubject}
-          </Label>
-          <Input
-            id="subject"
-            placeholder={t.placeholderSubject}
-            className="h-8 text-sm"
-            {...register("subject")}
-            disabled={isLoading}
-          />
-        </div>
+        {renderComboboxField(
+          "subject",
+          "subject",
+          t.labelSubject,
+          t.placeholderSubject,
+          subjectOptions
+        )}
 
-        {/* Teacher Name */}
-        <div className="space-y-1.5">
-          <Label htmlFor="teacher" className="text-xs text-muted-foreground">
-            {t.labelTeacher}
-          </Label>
-          <Input
-            id="teacher"
-            placeholder={t.placeholderTeacher}
-            className="h-8 text-sm"
-            {...register("teacher")}
-            disabled={isLoading}
-          />
-        </div>
+        {renderComboboxField(
+          "teacher",
+          "teacher",
+          t.labelTeacher,
+          t.placeholderTeacher,
+          teacherOptions
+        )}
 
-        {/* Teacher ID */}
-        <div className="space-y-1.5">
-          <Label htmlFor="teacherId" className="text-xs text-muted-foreground">
-            {t.labelTeacherId}
-          </Label>
-          <Input
-            id="teacherId"
-            placeholder={t.placeholderTeacherId}
-            className="h-8 text-sm"
-            {...register("teacherId")}
-            disabled={isLoading}
-          />
-        </div>
+        {renderComboboxField(
+          "teacherId",
+          "teacherId",
+          t.labelTeacherId,
+          t.placeholderTeacherId,
+          teacherIdOptions
+        )}
 
         {/* Date */}
         <div className="space-y-1.5">
@@ -213,19 +241,13 @@ export function FiltersForm({ onFilterChange, isLoading }: FiltersFormProps) {
           />
         </div>
 
-        {/* Lesson Room */}
-        <div className="space-y-1.5">
-          <Label htmlFor="room" className="text-xs text-muted-foreground">
-            {t.labelRoom}
-          </Label>
-          <Input
-            id="room"
-            placeholder="e.g. 302"
-            className="h-8 text-sm"
-            {...register("room")}
-            disabled={isLoading}
-          />
-        </div>
+        {renderComboboxField(
+          "room",
+          "room",
+          t.labelRoom,
+          "e.g. 302",
+          roomOptions
+        )}
 
         {/* Lesson Time */}
         <div className="space-y-1.5">

@@ -349,7 +349,7 @@ function StudentPanel({ student }: { student: StudentWithCourses }) {
               {t.pointsSummary(
                 selectedCourse.total_points.toFixed(1),
                 selectedCourse.max_points,
-                String(selectedCourse.teacher_id)
+                String(selectedCourse.teacher_name)
               )}
             </div>
           </div>

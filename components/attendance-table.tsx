@@ -155,7 +155,7 @@ export function AttendanceTable({
             <TableHead className="min-w-[90px] text-xs">Group</TableHead>
             <TableHead className="min-w-[80px] text-xs">Subject</TableHead>
             <TableHead className="min-w-[140px] text-xs">Teacher</TableHead>
-            <TableHead className="min-w-[90px] text-xs">Teacher ID</TableHead>
+            <TableHead className="min-w-[90px] text-xs">Teacher Name</TableHead>
             <TableHead className="min-w-[110px] text-xs">Date</TableHead>
             <TableHead className="w-[80px] text-xs text-center">
               Time

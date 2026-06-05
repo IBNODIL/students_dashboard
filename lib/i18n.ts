@@ -133,8 +133,8 @@ export const translations: Record<Language, Translations> = {
     absence: "absence",
     lessons: "lessons",
     attMobile: "att.",
-    pointsSummary: (pts, max, teacherId) =>
-      `Points: ${pts} / ${max} max · Teacher ID: ${teacherId}`,
+    pointsSummary: (pts, max, teacherName) =>
+      `Points: ${pts} / ${max} max · Teacher Name: ${teacherName}`,
     dateLocale: "en-GB",
   },
 

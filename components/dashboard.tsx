@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { StatsCards } from "@/components/stats-cards";
 import { FiltersForm } from "@/components/filters-form";
 import { StudentPanels } from "@/components/student-panels";
@@ -109,13 +109,67 @@ export function Dashboard() {
   const total = data?.total ?? 0;
   const totalPages = data?.total_pages ?? 1;
 
+  const {
+    nameOptions,
+    studentIdOptions,
+    groupOptions,
+    subjectOptions,
+    teacherOptions,
+    teacherIdOptions,
+    roomOptions,
+  } = useMemo(() => {
+    const nameSet = new Set<string>();
+    const studentIdSet = new Set<string>();
+    const groupSet = new Set<string>();
+    const subjectSet = new Set<string>();
+    const teacherSet = new Set<string>();
+    const teacherIdSet = new Set<string>();
+    const roomSet = new Set<string>();
+
+    students.forEach((student) => {
+      nameSet.add(student.student_name);
+      studentIdSet.add(String(student.student_id));
+      if (student.group_name) groupSet.add(student.group_name);
+      student.courses.forEach((course) => {
+        if (course.subject_name) subjectSet.add(course.subject_name);
+        if (course.teacher_name) teacherSet.add(course.teacher_name);
+        if (course.teacher_id) teacherIdSet.add(course.teacher_id);
+        course.attendances.forEach((attendance) => {
+          if (attendance.lesson_room !== undefined && attendance.lesson_room !== null) {
+            roomSet.add(String(attendance.lesson_room));
+          }
+        });
+      });
+    });
+
+    return {
+      nameOptions: Array.from(nameSet),
+      studentIdOptions: Array.from(studentIdSet),
+      groupOptions: Array.from(groupSet),
+      subjectOptions: Array.from(subjectSet),
+      teacherOptions: Array.from(teacherSet),
+      teacherIdOptions: Array.from(teacherIdSet),
+      roomOptions: Array.from(roomSet),
+    };
+  }, [students]);
+
   return (
     <div className="space-y-6">
       {/* Stats overview */}
       <StatsCards stats={stats} />
 
       {/* Filters */}
-      <FiltersForm onFilterChange={handleFilterChange} isLoading={isLoading} />
+      <FiltersForm
+        onFilterChange={handleFilterChange}
+        isLoading={isLoading}
+        nameOptions={nameOptions}
+        studentIdOptions={studentIdOptions}
+        groupOptions={groupOptions}
+        subjectOptions={subjectOptions}
+        teacherOptions={teacherOptions}
+        teacherIdOptions={teacherIdOptions}
+        roomOptions={roomOptions}
+      />
 
       {/* Student expansion panels */}
       <StudentPanels
