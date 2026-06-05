@@ -178,7 +178,8 @@ function ComboboxEmpty({
   )
 }
 
-interface ComboboxListProps extends React.HTMLAttributes<HTMLDivElement> {
+interface ComboboxListProps
+  extends Omit<React.HTMLAttributes<HTMLDivElement>, "children"> {
   children?: (item: string) => React.ReactNode
   className?: string
 }
