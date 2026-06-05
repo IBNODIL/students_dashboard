@@ -152,9 +152,17 @@ export interface StudentWithCourses {
   }
 }
 
+export interface StudentStatusSummary {
+  present: number
+  absent: number
+  exit: number
+  total: number
+}
+
 export interface GroupedApiResponse {
   students: StudentWithCourses[]
   stats: AttendanceStats
+  studentStatusSummary: StudentStatusSummary
   total: number
   page: number
   limit: number

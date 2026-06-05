@@ -109,6 +109,13 @@ export function Dashboard() {
   const total = data?.total ?? 0;
   const totalPages = data?.total_pages ?? 1;
 
+  const attendanceSummary = data?.studentStatusSummary ?? {
+    present: 0,
+    absent: 0,
+    exit: 0,
+    total: 0,
+  };
+
   const {
     nameOptions,
     studentIdOptions,
@@ -169,6 +176,10 @@ export function Dashboard() {
         teacherOptions={teacherOptions}
         teacherIdOptions={teacherIdOptions}
         roomOptions={roomOptions}
+        presentCount={attendanceSummary.present}
+        absentCount={attendanceSummary.absent}
+        exitCount={attendanceSummary.exit}
+        totalCount={attendanceSummary.total}
       />
 
       {/* Student expansion panels */}

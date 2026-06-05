@@ -28,48 +28,94 @@ export async function GET(req: NextRequest) {
 
   const rawStudents = await loadRawStudentsForAggregation();
 
-  const result = filterToGroupedProfiles(rawStudents, filters);
-
-  const stats = buildStatsFromProfiles(result);
-  const total = result.length;
-  const total_pages = Math.ceil(total / limit);
-  const start = (page - 1) * limit;
-  const paginated = result.slice(start, start + limit);
-
-  // Fetch real-time attendance status for paginated students
   const prisma = getPrisma();
-  const studentIds = paginated.map((s) => s.student_id);
-  const attendanceRecords = await prisma.attendance.findMany({
-    where: { studentId: { in: studentIds } },
+  
+  // Get ALL students' attendance statuses first
+  const allAttendanceRecords = await prisma.attendance.findMany({
     orderBy: { createdAt: "desc" },
     distinct: ["studentId"],
   });
 
-  const attendanceMap = new Map(
-    attendanceRecords.map((a: typeof attendanceRecords[number]) => [
-      a.studentId,
-      {
-        status:
-          a.inside === 1
-            ? ("here" as const)
-            : a.inside === 0 && a.timeLog
-            ? ("exit" as const)
-            : ("do not come" as const),
-        inside: a.inside,
-        timeLog: a.timeLog?.toISOString() ?? null,
-        lastUpdated: a.createdAt.toISOString(),
-      },
-    ])
+  const studentStatusMap = new Map<
+    number,
+    {
+      status: "here" | "exit" | "do not come";
+      inside: number | null;
+      timeLog: string | null;
+      lastUpdated: string | null;
+    }
+  >();
+
+  for (const attendance of allAttendanceRecords) {
+    studentStatusMap.set(attendance.studentId, {
+      status:
+        attendance.inside === 1
+          ? ("here" as const)
+          : attendance.inside === 0 && attendance.timeLog
+          ? ("exit" as const)
+          : ("do not come" as const),
+      inside: attendance.inside,
+      timeLog: attendance.timeLog?.toISOString() ?? null,
+      lastUpdated: attendance.createdAt.toISOString(),
+    });
+  }
+
+  const normalizeFilterStatus = (status: string) => {
+    if (status === "present") return "here";
+    if (status === "exit") return "exit";
+    if (status === "absent") return "do not come";
+    return "";
+  };
+
+  const requestedStatus = normalizeFilterStatus(filters.status);
+
+  // Filter students by their attendance status BEFORE applying course filters
+  const studentIdsWithStatus = Array.from(studentStatusMap.entries())
+    .filter(([_, attendance]) => {
+      if (!requestedStatus) return true;
+      return attendance.status === requestedStatus;
+    })
+    .map(([id]) => id);
+
+  // Create a modified filters object that doesn't include status
+  const filtersWithoutStatus = { ...filters, status: "" };
+
+  // Apply course-level filters
+  const result = filterToGroupedProfiles(rawStudents, filtersWithoutStatus);
+
+  // Further filter by student IDs that match the status filter
+  const statusFilteredResult = requestedStatus
+    ? result.filter((student) => studentIdsWithStatus.includes(student.student_id))
+    : result;
+
+  const studentStatusSummary = statusFilteredResult.reduce(
+    (summary, student) => {
+      const attendance = studentStatusMap.get(student.student_id);
+      const currentStatus = attendance?.status ?? "do not come";
+      summary.total += 1;
+      if (currentStatus === "here") summary.present += 1;
+      else if (currentStatus === "exit") summary.exit += 1;
+      else summary.absent += 1;
+      return summary;
+    },
+    { present: 0, absent: 0, exit: 0, total: 0 }
   );
+
+  const stats = buildStatsFromProfiles(statusFilteredResult);
+  const total = statusFilteredResult.length;
+  const total_pages = Math.ceil(total / limit);
+  const start = (page - 1) * limit;
+  const paginated = statusFilteredResult.slice(start, start + limit);
 
   const studentsWithStatus = paginated.map((s) => ({
     ...s,
-    attendanceStatus: attendanceMap.get(s.student_id),
+    attendanceStatus: studentStatusMap.get(s.student_id),
   }));
 
   return NextResponse.json({
     students: studentsWithStatus,
     stats,
+    studentStatusSummary,
     total,
     page,
     limit,

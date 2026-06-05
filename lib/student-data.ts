@@ -404,7 +404,7 @@ export function filterToGroupedProfiles(
   const date = f.date.trim();
   const room = f.room.trim();
   const lessonTime = f.lessonTime.trim();
-  const status = f.status.trim();
+  // Status filtering is handled outside this helper, using current student attendance state.
 
   const studentMap = new Map<number, Student[]>();
   for (const record of students) {
@@ -459,11 +459,9 @@ export function filterToGroupedProfiles(
       if (date) allAtts = allAtts.filter((a) => a.date.startsWith(date));
       if (room) allAtts = allAtts.filter((a) => String(a.lesson_room).includes(room));
       if (lessonTime) allAtts = allAtts.filter((a) => String(a.lesson_time) === lessonTime);
-      if (status && status !== "all")
-        allAtts = allAtts.filter((a) => a.status === status);
 
       if (
-        (date || room || lessonTime || (status && status !== "all")) &&
+        (date || room || lessonTime) &&
         allAtts.length === 0
       )
         continue;

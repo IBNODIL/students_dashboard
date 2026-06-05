@@ -179,12 +179,12 @@ function ComboboxEmpty({
 }
 
 interface ComboboxListProps extends React.HTMLAttributes<HTMLDivElement> {
-  renderItem: (item: string) => React.ReactNode
+  children?: (item: string) => React.ReactNode
   className?: string
 }
 
 function ComboboxList({
-  renderItem,
+  children,
   className,
   ...props
 }: ComboboxListProps) {
@@ -195,7 +195,7 @@ function ComboboxList({
 
   return (
     <div className={cn("space-y-1 py-1", className)} {...props}>
-      {context.filteredItems.map((item) => renderItem(item))}
+      {context.filteredItems.map((item) => children?.(item))}
     </div>
   )
 }

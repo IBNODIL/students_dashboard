@@ -3,6 +3,7 @@
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -61,6 +62,10 @@ interface FiltersFormProps {
   teacherOptions?: string[];
   teacherIdOptions?: string[];
   roomOptions?: string[];
+  presentCount?: number;
+  absentCount?: number;
+  exitCount?: number;
+  totalCount?: number;
 }
 
 export function FiltersForm({
@@ -73,8 +78,13 @@ export function FiltersForm({
   teacherOptions = [],
   teacherIdOptions = [],
   roomOptions = [],
+  presentCount = 0,
+  absentCount = 0,
+  exitCount = 0,
+  totalCount = 0,
 }: FiltersFormProps) {
   const { t } = useLanguage();
+  const [submittedFilters, setSubmittedFilters] = useState<FilterValues>(defaultValues);
   const { control, register, watch, setValue, reset, getValues, handleSubmit } =
     useForm<FilterValues>({
       resolver: zodResolver(filterSchema),
@@ -106,13 +116,13 @@ export function FiltersForm({
             />
             <ComboboxContent>
               <ComboboxEmpty>No items found.</ComboboxEmpty>
-              <ComboboxList
-                renderItem={(item) => (
+              <ComboboxList>
+                {(item: string) => (
                   <ComboboxItem key={item} value={item}>
                     {item}
                   </ComboboxItem>
                 )}
-              />
+              </ComboboxList>
             </ComboboxContent>
           </Combobox>
         )}
@@ -122,17 +132,19 @@ export function FiltersForm({
 
   // Qidiruv tugmasi bosilganda yoki Enter bosilganda ishlaydi
   const onSubmit = (values: FilterValues) => {
+    setSubmittedFilters(values);
     onFilterChange(values);
   };
 
   const handleReset = () => {
     reset(defaultValues);
+    setSubmittedFilters(defaultValues);
     onFilterChange(defaultValues);
   };
 
   const statusValue = watch("status");
   const lessonTimeValue = watch("lessonTime");
-  const hasActiveFilters = Object.entries(getValues()).some(([k, v]) =>
+  const hasActiveFilters = Object.entries(submittedFilters).some(([k, v]) =>
     k === "status" ? v !== "all" : v !== ""
   );
 
@@ -177,6 +189,27 @@ export function FiltersForm({
           )}
         </div>
       </div>
+
+      {hasActiveFilters && (
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+          <div className="rounded-xl border border-border bg-muted/50 px-3 py-2">
+            <div className="text-sm text-muted-foreground">Total students</div>
+            <div className="mt-1 text-lg font-semibold text-foreground">{totalCount}</div>
+          </div>
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+            <div className="text-sm text-emerald-700">Present</div>
+            <div className="mt-1 text-lg font-semibold text-emerald-900">{presentCount}</div>
+          </div>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+            <div className="text-sm text-amber-700">Exit</div>
+            <div className="mt-1 text-lg font-semibold text-amber-900">{exitCount}</div>
+          </div>
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2">
+            <div className="text-sm text-rose-700">Absent</div>
+            <div className="mt-1 text-lg font-semibold text-rose-900">{absentCount}</div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         {renderComboboxField(
@@ -286,10 +319,9 @@ export function FiltersForm({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t.allStatuses}</SelectItem>
-              <SelectItem value="P">P — {t.statusPresent} (1 pt)</SelectItem>
-              <SelectItem value="L">L — {t.statusLate} (0.5 pt)</SelectItem>
-              <SelectItem value="U">U — {t.statusAbsent} (0 pt)</SelectItem>
-              <SelectItem value="E">E — {t.statusExcused} (1 pt)</SelectItem>
+              <SelectItem value="present">{t.statusPresent}</SelectItem>
+              <SelectItem value="exit">Exit</SelectItem>
+              <SelectItem value="absent">{t.statusAbsent}</SelectItem>
             </SelectContent>
           </Select>
         </div>
