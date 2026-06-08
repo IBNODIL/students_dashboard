@@ -159,10 +159,21 @@ export interface StudentStatusSummary {
   total: number
 }
 
+export interface FilterOptions {
+  nameOptions: string[]
+  studentIdOptions: string[]
+  groupOptions: string[]
+  subjectOptions: string[]
+  teacherOptions: string[]
+  teacherIdOptions: string[]
+  roomOptions: string[]
+}
+
 export interface GroupedApiResponse {
   students: StudentWithCourses[]
   stats: AttendanceStats
   studentStatusSummary: StudentStatusSummary
+  filterOptions: FilterOptions
   total: number
   page: number
   limit: number

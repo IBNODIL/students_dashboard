@@ -101,6 +101,31 @@ export async function GET(req: NextRequest) {
     { present: 0, absent: 0, exit: 0, total: 0 }
   );
 
+  const nameOptions = new Set<string>();
+  const studentIdOptions = new Set<string>();
+  const groupOptions = new Set<string>();
+  const subjectOptions = new Set<string>();
+  const teacherOptions = new Set<string>();
+  const teacherIdOptions = new Set<string>();
+  const roomOptions = new Set<string>();
+
+  statusFilteredResult.forEach((student) => {
+    nameOptions.add(student.student_name);
+    studentIdOptions.add(String(student.student_id));
+    if (student.group_name) groupOptions.add(student.group_name);
+
+    student.courses.forEach((course) => {
+      if (course.subject_name) subjectOptions.add(course.subject_name);
+      if (course.teacher_name) teacherOptions.add(course.teacher_name);
+      if (course.teacher_id) teacherIdOptions.add(course.teacher_id);
+      course.attendances.forEach((attendance) => {
+        if (attendance.lesson_room !== undefined && attendance.lesson_room !== null) {
+          roomOptions.add(String(attendance.lesson_room));
+        }
+      });
+    });
+  });
+
   const stats = buildStatsFromProfiles(statusFilteredResult);
   const total = statusFilteredResult.length;
   const total_pages = Math.ceil(total / limit);
@@ -116,6 +141,15 @@ export async function GET(req: NextRequest) {
     students: studentsWithStatus,
     stats,
     studentStatusSummary,
+    filterOptions: {
+      nameOptions: Array.from(nameOptions).sort((a, b) => a.localeCompare(b)),
+      studentIdOptions: Array.from(studentIdOptions).sort((a, b) => a.localeCompare(b)),
+      groupOptions: Array.from(groupOptions).sort((a, b) => a.localeCompare(b)),
+      subjectOptions: Array.from(subjectOptions).sort((a, b) => a.localeCompare(b)),
+      teacherOptions: Array.from(teacherOptions).sort((a, b) => a.localeCompare(b)),
+      teacherIdOptions: Array.from(teacherIdOptions).sort((a, b) => a.localeCompare(b)),
+      roomOptions: Array.from(roomOptions).sort((a, b) => a.localeCompare(b)),
+    },
     total,
     page,
     limit,

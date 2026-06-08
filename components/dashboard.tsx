@@ -124,41 +124,15 @@ export function Dashboard() {
     teacherOptions,
     teacherIdOptions,
     roomOptions,
-  } = useMemo(() => {
-    const nameSet = new Set<string>();
-    const studentIdSet = new Set<string>();
-    const groupSet = new Set<string>();
-    const subjectSet = new Set<string>();
-    const teacherSet = new Set<string>();
-    const teacherIdSet = new Set<string>();
-    const roomSet = new Set<string>();
-
-    students.forEach((student) => {
-      nameSet.add(student.student_name);
-      studentIdSet.add(String(student.student_id));
-      if (student.group_name) groupSet.add(student.group_name);
-      student.courses.forEach((course) => {
-        if (course.subject_name) subjectSet.add(course.subject_name);
-        if (course.teacher_name) teacherSet.add(course.teacher_name);
-        if (course.teacher_id) teacherIdSet.add(course.teacher_id);
-        course.attendances.forEach((attendance) => {
-          if (attendance.lesson_room !== undefined && attendance.lesson_room !== null) {
-            roomSet.add(String(attendance.lesson_room));
-          }
-        });
-      });
-    });
-
-    return {
-      nameOptions: Array.from(nameSet),
-      studentIdOptions: Array.from(studentIdSet),
-      groupOptions: Array.from(groupSet),
-      subjectOptions: Array.from(subjectSet),
-      teacherOptions: Array.from(teacherSet),
-      teacherIdOptions: Array.from(teacherIdSet),
-      roomOptions: Array.from(roomSet),
-    };
-  }, [students]);
+  } = data?.filterOptions ?? {
+    nameOptions: [],
+    studentIdOptions: [],
+    groupOptions: [],
+    subjectOptions: [],
+    teacherOptions: [],
+    teacherIdOptions: [],
+    roomOptions: [],
+  };
 
   return (
     <div className="space-y-6">
