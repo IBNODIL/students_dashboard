@@ -65,6 +65,12 @@ function AttendancePctColor(pct: number) {
   return "text-rose-600 dark:text-rose-400";
 }
 
+function GradePctColor(pct: number) {
+  if (pct >= 80) return "text-emerald-600 dark:text-emerald-400";
+  if (pct >= 60) return "text-amber-600 dark:text-amber-400";
+  return "text-rose-600 dark:text-rose-400";
+}
+
 function StudentPanel({ student }: { student: StudentWithCourses }) {
   const { t } = useLanguage();
   const [selectedCourseIdx, setSelectedCourseIdx] = useState(0);
@@ -113,6 +119,18 @@ function StudentPanel({ student }: { student: StudentWithCourses }) {
   const overallAttendancePct = overallStats.max_points > 0
     ? (overallStats.total_points / overallStats.max_points) * 100
     : 0;
+
+  const gradedCourses = student.courses.filter(
+    (c) => c.echo_grades
+  );
+
+  const overallGradePct =
+    gradedCourses.length > 0
+      ? gradedCourses.reduce(
+        (sum, c) => sum + (c.echo_grades?.percentage ?? 0),
+        0
+      ) / gradedCourses.length
+      : 0;
 
   const totalLessons = student.courses.reduce(
     (sum, c) => sum + c.attendances.length,
@@ -203,6 +221,22 @@ function StudentPanel({ student }: { student: StudentWithCourses }) {
               </span>
               <span className="text-[10px] text-muted-foreground leading-none">
                 {t.attendance}
+              </span>
+            </div>
+
+            {/* Overall Grade % */}
+            <div className="flex flex-col items-end gap-0.5">
+              <span
+                className={cn(
+                  "text-sm font-bold tabular-nums",
+                  GradePctColor(overallGradePct)
+                )}
+              >
+                {overallGradePct.toFixed(1)}%
+              </span>
+
+              <span className="text-[10px] text-muted-foreground leading-none">
+                Grade
               </span>
             </div>
 

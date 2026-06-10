@@ -384,9 +384,13 @@ export interface GroupedQueryFilters {
   subject: string;
   teacher: string;
   teacherId: string;
-  date: string;
   room: string;
   lessonTime: string;
+  attendanceOperator: string
+  attendancePercent: string
+
+  gradeOperator: string
+  gradePercent: string
   status: string;
 }
 
@@ -401,7 +405,6 @@ export function filterToGroupedProfiles(
   const subject = f.subject.trim().toLowerCase();
   const teacher = f.teacher.trim().toLowerCase();
   const teacherId = f.teacherId.trim().toLowerCase();
-  const date = f.date.trim();
   const room = f.room.trim();
   const lessonTime = f.lessonTime.trim();
   // Status filtering is handled outside this helper, using current student attendance state.
@@ -456,12 +459,11 @@ export function filterToGroupedProfiles(
         }
       }
 
-      if (date) allAtts = allAtts.filter((a) => a.date.startsWith(date));
       if (room) allAtts = allAtts.filter((a) => String(a.lesson_room).includes(room));
       if (lessonTime) allAtts = allAtts.filter((a) => String(a.lesson_time) === lessonTime);
 
       if (
-        (date || room || lessonTime) &&
+        (room || lessonTime) &&
         allAtts.length === 0
       )
         continue;

@@ -1,6 +1,7 @@
 export type Language = "en" | "uz" | "ja" | "ru";
 
 export interface Translations {
+  labelPercent: ReactNode;
   // Header / Page
   appTitle: string;
   appSubtitle: string;
@@ -23,6 +24,10 @@ export interface Translations {
   labelRoom: string;
   labelLessonTime: string;
   labelStatus: string;
+  labelPercentType: string;
+  labelPercentValue: string;
+  placeholderPercentType: string;
+  placeholderPercentValue: string;
   placeholderName: string;
   placeholderStudentId: string;
   placeholderGroup: string;
@@ -36,6 +41,9 @@ export interface Translations {
   statusLate: string;
   statusAbsent: string;
   statusExcused: string;
+  allPercentTypes: string;
+  percentTypeAttendance: string;
+  percentTypeGrades: string;
   // Stats Cards
   attendanceRate: string;
   absenceRate: string;
@@ -98,6 +106,13 @@ export const translations: Record<Language, Translations> = {
     placeholderSubject: "e.g. ICPC",
     placeholderTeacher: "Search teacher…",
     placeholderTeacherId: "e.g. JDU1362",
+    placeholderPercentType: "Select type",
+    placeholderPercentValue: "0–100",
+    labelPercentType: "Percent type",
+    labelPercentValue: "Threshold",
+    percentTypeAttendance: "Attendance",
+    percentTypeGrades: "Grades",
+    allPercentTypes: "All types",
     allTimes: "All times",
     period: (n) => `Period ${n}`,
     allStatuses: "All statuses",
@@ -167,6 +182,13 @@ export const translations: Record<Language, Translations> = {
     placeholderSubject: "mas. ICPC",
     placeholderTeacher: "O'qituvchi qidirish…",
     placeholderTeacherId: "mas. JDU1362",
+    placeholderPercentType: "Turini tanlang",
+    placeholderPercentValue: "0–100",
+    labelPercentType: "Foiz turi",
+    labelPercentValue: "Chegaraviy qiymat",
+    percentTypeAttendance: "Davomat",
+    percentTypeGrades: "Baholar",
+    allPercentTypes: "Barcha turlar",
     allTimes: "Barcha vaqtlar",
     period: (n) => `${n}-dars`,
     allStatuses: "Barcha holatlar",
@@ -236,6 +258,13 @@ export const translations: Record<Language, Translations> = {
     placeholderSubject: "例: ICPC",
     placeholderTeacher: "教員を検索…",
     placeholderTeacherId: "例: JDU1362",
+    placeholderPercentType: "タイプを選択",
+    placeholderPercentValue: "0–100",
+    labelPercentType: "パーセントタイプ",
+    labelPercentValue: "閾値",
+    percentTypeAttendance: "出席",
+    percentTypeGrades: "成績",
+    allPercentTypes: "すべてのタイプ",
     allTimes: "全時限",
     period: (n) => `第${n}時限`,
     allStatuses: "全状態",
@@ -305,6 +334,13 @@ export const translations: Record<Language, Translations> = {
     placeholderSubject: "напр. ICPC",
     placeholderTeacher: "Поиск преподавателя…",
     placeholderTeacherId: "напр. JDU1362",
+    placeholderPercentType: "Выберите тип",
+    placeholderPercentValue: "0–100",
+    labelPercentType: "Тип процента",
+    labelPercentValue: "Порог",
+    percentTypeAttendance: "Посещаемость",
+    percentTypeGrades: "Оценки",
+    allPercentTypes: "Все типы",
     allTimes: "Все периоды",
     period: (n) => `${n}-пара`,
     allStatuses: "Все статусы",

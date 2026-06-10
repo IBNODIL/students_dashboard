@@ -187,8 +187,11 @@ export interface FilterValues {
   subject: string
   teacher: string
   teacherId: string
-  date: string
   room: string
   lessonTime: string
+  attendanceOperator: string
+  attendancePercent: string
+  gradeOperator: string
+  gradePercent: string
   status: string
 }

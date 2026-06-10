@@ -28,9 +28,12 @@ const DEFAULT_FILTERS: FilterValues = {
   subject: "",
   teacher: "",
   teacherId: "",
-  date: "",
   room: "",
   lessonTime: "",
+  attendanceOperator: "",
+  attendancePercent: "",
+  gradeOperator: "",
+  gradePercent: "",
   status: "all",
 };
 
@@ -42,9 +45,16 @@ function buildQueryString(filters: FilterValues, page: number, limit = 20) {
   if (filters.subject) params.set("subject", filters.subject);
   if (filters.teacher) params.set("teacher", filters.teacher);
   if (filters.teacherId) params.set("teacherId", filters.teacherId);
-  if (filters.date) params.set("date", filters.date);
   if (filters.room) params.set("room", filters.room);
   if (filters.lessonTime) params.set("lessonTime", filters.lessonTime);
+  if (filters.attendanceOperator)
+    params.set("attendanceOperator", filters.attendanceOperator);
+  if (filters.attendancePercent)
+    params.set("attendancePercent", filters.attendancePercent);
+  if (filters.gradeOperator)
+    params.set("gradeOperator", filters.gradeOperator);
+  if (filters.gradePercent)
+    params.set("gradePercent", filters.gradePercent);
   if (filters.status && filters.status !== "all")
     params.set("status", filters.status);
   params.set("page", String(page));

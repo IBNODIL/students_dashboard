@@ -17,9 +17,12 @@ export async function GET(req: NextRequest) {
     subject: sp.get("subject")?.trim() ?? "",
     teacher: sp.get("teacher")?.trim() ?? "",
     teacherId: sp.get("teacherId")?.trim() ?? "",
-    date: sp.get("date")?.trim() ?? "",
     room: sp.get("room")?.trim() ?? "",
     lessonTime: sp.get("lessonTime")?.trim() ?? "",
+    attendanceOperator: sp.get("attendanceOperator")?.trim() ?? "",
+    attendancePercent: sp.get("attendancePercent")?.trim() ?? "",
+    gradeOperator: sp.get("gradeOperator")?.trim() ?? "",
+    gradePercent: sp.get("gradePercent")?.trim() ?? "",
     status: sp.get("status")?.trim() ?? "",
   };
 
@@ -29,7 +32,7 @@ export async function GET(req: NextRequest) {
   const rawStudents = await loadRawStudentsForAggregation();
 
   const prisma = getPrisma();
-  
+
   // Get ALL students' attendance statuses first
   const allAttendanceRecords = await prisma.attendance.findMany({
     orderBy: { createdAt: "desc" },
@@ -52,8 +55,8 @@ export async function GET(req: NextRequest) {
         attendance.inside === 1
           ? ("here" as const)
           : attendance.inside === 0 && attendance.timeLog
-          ? ("exit" as const)
-          : ("do not come" as const),
+            ? ("exit" as const)
+            : ("do not come" as const),
       inside: attendance.inside,
       timeLog: attendance.timeLog?.toISOString() ?? null,
       lastUpdated: attendance.createdAt.toISOString(),
@@ -88,7 +91,79 @@ export async function GET(req: NextRequest) {
     ? result.filter((student) => studentIdsWithStatus.includes(student.student_id))
     : result;
 
-  const studentStatusSummary = statusFilteredResult.reduce(
+  let filteredResult = [...statusFilteredResult];
+
+  if (
+    filters.attendanceOperator &&
+    filters.attendancePercent
+  ) {
+    const target = Number(filters.attendancePercent);
+
+    filteredResult = filteredResult.filter((student) => {
+      const totalPoints = student.courses.reduce(
+        (sum, c) => sum + c.total_points,
+        0
+      );
+
+      const maxPoints = student.courses.reduce(
+        (sum, c) => sum + c.max_points,
+        0
+      );
+
+      const attendancePct =
+        maxPoints > 0
+          ? (totalPoints / maxPoints) * 100
+          : 0;
+
+      switch (filters.attendanceOperator) {
+        case "gt":
+          return attendancePct > target;
+
+        case "lt":
+          return attendancePct < target;
+
+        default:
+          return true;
+      }
+    });
+  }
+
+  if (
+    filters.gradeOperator &&
+    filters.gradePercent
+  ) {
+    const target = Number(filters.gradePercent);
+
+    filteredResult = filteredResult.filter((student) => {
+      const gradedCourses = student.courses.filter(
+        (c) => c.echo_grades
+      );
+
+      if (!gradedCourses.length) {
+        return false;
+      }
+
+      const avgGrade =
+        gradedCourses.reduce(
+          (sum, c) => sum + (c.echo_grades?.percentage ?? 0),
+          0
+        ) / gradedCourses.length;
+
+      switch (filters.gradeOperator) {
+        case "gt":
+          return avgGrade > target;
+
+        case "lt":
+          return avgGrade < target;
+
+        default:
+          return true;
+      }
+    });
+  }
+
+
+  const studentStatusSummary = filteredResult.reduce(
     (summary, student) => {
       const attendance = studentStatusMap.get(student.student_id);
       const currentStatus = attendance?.status ?? "do not come";
@@ -109,7 +184,7 @@ export async function GET(req: NextRequest) {
   const teacherIdOptions = new Set<string>();
   const roomOptions = new Set<string>();
 
-  statusFilteredResult.forEach((student) => {
+  filteredResult.forEach((student) => {
     nameOptions.add(student.student_name);
     studentIdOptions.add(String(student.student_id));
     if (student.group_name) groupOptions.add(student.group_name);
@@ -126,11 +201,11 @@ export async function GET(req: NextRequest) {
     });
   });
 
-  const stats = buildStatsFromProfiles(statusFilteredResult);
-  const total = statusFilteredResult.length;
+  const stats = buildStatsFromProfiles(filteredResult);
+  const total = filteredResult.length;
   const total_pages = Math.ceil(total / limit);
   const start = (page - 1) * limit;
-  const paginated = statusFilteredResult.slice(start, start + limit);
+  const paginated = filteredResult.slice(start, start + limit);
 
   const studentsWithStatus = paginated.map((s) => ({
     ...s,

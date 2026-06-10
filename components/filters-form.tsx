@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
 import {
   Combobox,
@@ -26,18 +27,63 @@ import { Search, X } from "lucide-react";
 import type { FilterValues } from "@/lib/types";
 import { useLanguage } from "@/contexts/language-context";
 
-const filterSchema = z.object({
-  name: z.string(),
-  group: z.string(),
-  studentId: z.string(),
-  subject: z.string(),
-  teacher: z.string(),
-  teacherId: z.string(),
-  date: z.string(),
-  room: z.string(),
-  lessonTime: z.string(),
-  status: z.string(),
-});
+const filterSchema = z
+  .object({
+    name: z.string(),
+    group: z.string(),
+    studentId: z.string(),
+    subject: z.string(),
+    teacher: z.string(),
+    teacherId: z.string(),
+    room: z.string(),
+    lessonTime: z.string(),
+    attendanceOperator: z.string(),
+    attendancePercent: z.string(),
+    gradeOperator: z.string(),
+    gradePercent: z.string(),
+    status: z.string(),
+  })
+  .superRefine((data, ctx) => {
+    const validatePercent = (
+      value: string,
+      operator: string,
+      field: "attendancePercent" | "gradePercent"
+    ) => {
+      if (operator && !value) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [field],
+          message: "Enter percentage",
+        });
+        return;
+      }
+
+      if (
+        value &&
+        (Number(value) < 0 ||
+          Number(value) > 100 ||
+          Number.isNaN(Number(value)))
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [field],
+          message: "Value must be 0-100",
+        });
+      }
+    };
+
+    validatePercent(
+      data.attendancePercent,
+      data.attendanceOperator,
+      "attendancePercent"
+    );
+
+    validatePercent(
+      data.gradePercent,
+      data.gradeOperator,
+      "gradePercent"
+    );
+  });
 
 const defaultValues: FilterValues = {
   name: "",
@@ -46,9 +92,15 @@ const defaultValues: FilterValues = {
   subject: "",
   teacher: "",
   teacherId: "",
-  date: "",
   room: "",
   lessonTime: "",
+
+  attendanceOperator: "",
+  attendancePercent: "",
+
+  gradeOperator: "",
+  gradePercent: "",
+
   status: "all",
 };
 
@@ -85,11 +137,18 @@ export function FiltersForm({
 }: FiltersFormProps) {
   const { t } = useLanguage();
   const [submittedFilters, setSubmittedFilters] = useState<FilterValues>(defaultValues);
-  const { control, register, watch, setValue, reset, getValues, handleSubmit } =
-    useForm<FilterValues>({
-      resolver: zodResolver(filterSchema),
-      defaultValues,
-    });
+  const {
+    control,
+    register,
+    watch,
+    setValue,
+    reset,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<FilterValues>({
+    resolver: zodResolver(filterSchema),
+    defaultValues,
+  });
 
   const renderComboboxField = (
     name: keyof FilterValues,
@@ -106,7 +165,7 @@ export function FiltersForm({
         name={name}
         control={control}
         render={({ field }) => (
-          <Combobox items={options} value={field.value} onValueChange={field.onChange}>
+          <Combobox items={options.slice(0, 10)} value={field.value} onValueChange={field.onChange}>
             <ComboboxInput
               id={id}
               placeholder={placeholder}
@@ -130,8 +189,61 @@ export function FiltersForm({
     </div>
   );
 
+  const renderPercentFilter = (
+    label: string,
+    operatorField: "attendanceOperator" | "gradeOperator",
+    percentField: "attendancePercent" | "gradePercent"
+  ) => (
+    <div className="space-y-1.5">
+      <Label className="text-xs text-muted-foreground">
+        {label}
+      </Label>
+
+      <div className="flex gap-2">
+        <Select
+          value={watch(operatorField) || "none"}
+          onValueChange={(v) =>
+            setValue(operatorField, v === "none" ? "" : v)
+          }
+        >
+          <SelectTrigger className="w-28 h-8">
+            <SelectValue />
+          </SelectTrigger>
+
+          <SelectContent>
+            <SelectItem value="none">Any</SelectItem>
+            <SelectItem value="gt">Kottaroq</SelectItem>
+            <SelectItem value="lt">Kichikroq</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <InputGroup className="flex-1 h-8">
+          <InputGroupInput
+            type="number"
+            min={0}
+            max={100}
+            placeholder="0-100"
+            {...register(percentField)}
+            onInput={(e) => {
+              const input = e.currentTarget;
+              const value = Number(input.value);
+
+              if (value > 100) input.value = "100";
+              if (value < 0) input.value = "0";
+            }}
+          />
+          <InputGroupAddon align="inline-end">
+            %
+          </InputGroupAddon>
+        </InputGroup>
+      </div>
+    </div>
+  );
+
   // Qidiruv tugmasi bosilganda yoki Enter bosilganda ishlaydi
   const onSubmit = (values: FilterValues) => {
+    console.log("FILTER SUBMITTED", values);
+
     setSubmittedFilters(values);
     onFilterChange(values);
   };
@@ -260,19 +372,17 @@ export function FiltersForm({
           teacherIdOptions
         )}
 
-        {/* Date */}
-        <div className="space-y-1.5">
-          <Label htmlFor="date" className="text-xs text-muted-foreground">
-            {t.labelDate}
-          </Label>
-          <Input
-            id="date"
-            type="date"
-            className="h-8 text-sm"
-            {...register("date")}
-            disabled={isLoading}
-          />
-        </div>
+        {renderPercentFilter(
+          "Attendance %",
+          "attendanceOperator",
+          "attendancePercent"
+        )}
+
+        {renderPercentFilter(
+          "Grades %",
+          "gradeOperator",
+          "gradePercent"
+        )}
 
         {renderComboboxField(
           "room",
