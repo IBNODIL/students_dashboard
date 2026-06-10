@@ -1,4 +1,5 @@
 export type Language = "en" | "uz" | "ja" | "ru";
+import type { ReactNode } from "react";
 
 export interface Translations {
   labelPercent: ReactNode;
@@ -78,6 +79,7 @@ export interface Translations {
 
 export const translations: Record<Language, Translations> = {
   en: {
+    labelPercent: "Percent",
     appTitle: "Students Attendance",
     appSubtitle: "Dashboard & Analytics",
     legend: "P = Present · L = Late · U = Absent · E = Excused",
@@ -154,6 +156,7 @@ export const translations: Record<Language, Translations> = {
   },
 
   uz: {
+    labelPercent: "Foiz",
     appTitle: "Talabalar Davomati",
     appSubtitle: "Boshqaruv paneli va tahlil",
     legend: "P = Keldi · L = Kechikdi · U = Kelmadi · E = Uzrli",
@@ -230,6 +233,7 @@ export const translations: Record<Language, Translations> = {
   },
 
   ja: {
+    labelPercent: "パーセント",
     appTitle: "学生出席管理",
     appSubtitle: "ダッシュボード & 分析",
     legend: "P = 出席 · L = 遅刻 · U = 欠席 · E = 公欠",
@@ -306,6 +310,7 @@ export const translations: Record<Language, Translations> = {
   },
 
   ru: {
+    labelPercent: "Процент",
     appTitle: "Посещаемость Студентов",
     appSubtitle: "Панель управления и аналитика",
     legend: "P = Присутствовал · L = Опоздал · U = Отсутствовал · E = Уважительная",
