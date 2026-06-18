@@ -133,3 +133,9 @@ model Account {
 
   @@map("accounts")
 }
+
+model SystemState {
+  id          String   @id @default("maintenance")
+  isUpdating  Boolean  @default(false)
+  updatedAt   DateTime @updatedAt
+}

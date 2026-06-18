@@ -1,11 +1,79 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Dashboard } from "@/components/dashboard";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { useLanguage } from "@/contexts/language-context";
+import { RefreshCw } from "lucide-react";
 
 export function HomePageClient() {
   const { t } = useLanguage();
+  const router = useRouter();
+  const [seeding, setSeeding] = useState(false);
+
+  async function handleRefresh() {
+    if (seeding) return;
+    setSeeding(true);
+
+    try {
+      // Open a POST to the seed endpoint — it returns an SSE stream.
+      // We store the URL in sessionStorage so the update-time page can pick it up.
+      // Because EventSource only supports GET, we use a small trick:
+      // the POST opens the stream, we pass it through a BroadcastChannel
+      // — but the simpler approach is to just navigate to /update-time
+      // and let it POST from there via a useEffect.
+      //
+      // Here we POST directly and store a flag so update-time page knows
+      // it should connect immediately.
+      const res = await fetch("/api/admin/seed", {
+        method: "POST",
+      });
+
+      if (!res.ok || !res.body) {
+        throw new Error(`Server responded with ${res.status}`);
+      }
+
+      // Store the SSE stream in a BroadcastChannel so the update-time page
+      // can read logs. Since we can't pass a ReadableStream across pages,
+      // we pipe log messages through BroadcastChannel instead.
+      const channel = new BroadcastChannel("seed_logs");
+
+      // Navigate to update-time immediately so visitors see maintenance,
+      // admin sees the terminal.
+      sessionStorage.setItem("seed_sse_active", "1");
+      router.push("/update-time");
+
+      // Read the SSE stream in the background and broadcast to the other page
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() ?? "";
+        for (const part of parts) {
+          const line = part.replace(/^data: /, "").trim();
+          if (!line) continue;
+          try {
+            const parsed = JSON.parse(line);
+            channel.postMessage(parsed);
+          } catch {
+            // ignore
+          }
+        }
+      }
+
+      channel.close();
+    } catch (err) {
+      console.error("Seed error:", err);
+      setSeeding(false);
+      // Could show a toast here
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 via-sky-50 to-blue-50">
@@ -32,6 +100,21 @@ export function HomePageClient() {
               <div className="text-xs text-muted-foreground hidden md:block">
                 {t.legend}
               </div>
+
+              {/* ── Refresh Data button ─────────────────────────────── */}
+              <button
+                onClick={handleRefresh}
+                disabled={seeding}
+                className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium border border-border bg-background hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                title="Fetch latest data from APIs and update the database"
+              >
+                <RefreshCw
+                  className={`h-3.5 w-3.5 ${seeding ? "animate-spin" : ""}`}
+                />
+                <span className="hidden sm:inline">
+                  {seeding ? "Refreshing…" : "Refresh Data"}
+                </span>
+              </button>
 
               <LanguageSwitcher />
             </div>

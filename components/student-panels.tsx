@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { StudentWithCourses } from "@/lib/types";
+import { overallLmsPercentFromCourses, courseLmsPercent } from "@/lib/grades";
 import { useLanguage } from "@/contexts/language-context";
 import {
   ChevronLeft,
@@ -120,22 +121,20 @@ function StudentPanel({ student }: { student: StudentWithCourses }) {
     ? (overallStats.total_points / overallStats.max_points) * 100
     : 0;
 
-  const gradedCourses = student.courses.filter(
-    (c) => c.echo_grades
-  );
-
-  const overallGradePct =
-    gradedCourses.length > 0
-      ? gradedCourses.reduce(
-        (sum, c) => sum + (c.echo_grades?.percentage ?? 0),
-        0
-      ) / gradedCourses.length
-      : 0;
+  // Point-weighted grade %, pooled across all courses — same calculation
+  // as the student profile page (sums earned/max scored assignment points,
+  // ignoring unscored placeholders like "-" or empty strings).
+  const overallGradePctRaw = overallLmsPercentFromCourses(student.courses);
+  const overallGradePct = overallGradePctRaw ?? 0;
+  const hasGradeData = overallGradePctRaw !== null;
 
   const totalLessons = student.courses.reduce(
     (sum, c) => sum + c.attendances.length,
     0
   );
+
+  // Per-course grade % for the selected course, using the same validated logic.
+  const selectedCourseGradePct = courseLmsPercent(selectedCourse);
 
   return (
     <AccordionItem
@@ -226,15 +225,20 @@ function StudentPanel({ student }: { student: StudentWithCourses }) {
 
             {/* Overall Grade % */}
             <div className="flex flex-col items-end gap-0.5">
-              <span
-                className={cn(
-                  "text-sm font-bold tabular-nums",
-                  GradePctColor(overallGradePct)
-                )}
-              >
-                {overallGradePct.toFixed(1)}%
-              </span>
-
+              {hasGradeData ? (
+                <span
+                  className={cn(
+                    "text-sm font-bold tabular-nums",
+                    GradePctColor(overallGradePct)
+                  )}
+                >
+                  {overallGradePct.toFixed(1)}%
+                </span>
+              ) : (
+                <span className="text-sm font-bold tabular-nums text-muted-foreground">
+                  n/a
+                </span>
+              )}
               <span className="text-[10px] text-muted-foreground leading-none">
                 Grade
               </span>
@@ -343,18 +347,18 @@ function StudentPanel({ student }: { student: StudentWithCourses }) {
 
           {/* Progress bars */}
           <div className="px-4 py-3 bg-muted/20 flex flex-wrap gap-x-6 gap-y-2">
-            {selectedCourse.echo_grades && (
+            {selectedCourse.echo_grades && selectedCourseGradePct !== null && (
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                   Grade
                 </span>
 
                 <MiniProgressBar
-                  pct={selectedCourse.echo_grades.percentage}
+                  pct={selectedCourseGradePct}
                   color={
-                    selectedCourse.echo_grades.percentage >= 80
+                    selectedCourseGradePct >= 80
                       ? "bg-emerald-500"
-                      : selectedCourse.echo_grades.percentage >= 60
+                      : selectedCourseGradePct >= 60
                         ? "bg-amber-500"
                         : "bg-rose-500"
                   }
