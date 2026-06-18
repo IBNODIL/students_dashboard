@@ -16,62 +16,23 @@ export function HomePageClient() {
     if (seeding) return;
     setSeeding(true);
 
+    // Navigate to the progress page first so the admin sees logs
+    // appear as soon as the maintenance flag flips on.
+    router.push("/update-time");
+
     try {
-      // Open a POST to the seed endpoint — it returns an SSE stream.
-      // We store the URL in sessionStorage so the update-time page can pick it up.
-      // Because EventSource only supports GET, we use a small trick:
-      // the POST opens the stream, we pass it through a BroadcastChannel
-      // — but the simpler approach is to just navigate to /update-time
-      // and let it POST from there via a useEffect.
-      //
-      // Here we POST directly and store a flag so update-time page knows
-      // it should connect immediately.
-      const res = await fetch("/api/admin/seed", {
-        method: "POST",
-      });
-
-      if (!res.ok || !res.body) {
-        throw new Error(`Server responded with ${res.status}`);
+      // Fire the seed job. This call runs synchronously on the server and
+      // resolves only once the whole job finishes (success or failure) —
+      // we don't need its response here since /update-time is already
+      // polling /api/admin/seed-status independently.
+      const res = await fetch("/api/admin/seed", { method: "POST" });
+      if (!res.ok) {
+        console.error("Seed request failed:", res.status);
       }
-
-      // Store the SSE stream in a BroadcastChannel so the update-time page
-      // can read logs. Since we can't pass a ReadableStream across pages,
-      // we pipe log messages through BroadcastChannel instead.
-      const channel = new BroadcastChannel("seed_logs");
-
-      // Navigate to update-time immediately so visitors see maintenance,
-      // admin sees the terminal.
-      sessionStorage.setItem("seed_sse_active", "1");
-      router.push("/update-time");
-
-      // Read the SSE stream in the background and broadcast to the other page
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const parts = buffer.split("\n\n");
-        buffer = parts.pop() ?? "";
-        for (const part of parts) {
-          const line = part.replace(/^data: /, "").trim();
-          if (!line) continue;
-          try {
-            const parsed = JSON.parse(line);
-            channel.postMessage(parsed);
-          } catch {
-            // ignore
-          }
-        }
-      }
-
-      channel.close();
     } catch (err) {
-      console.error("Seed error:", err);
+      console.error("Seed request error:", err);
+    } finally {
       setSeeding(false);
-      // Could show a toast here
     }
   }
 

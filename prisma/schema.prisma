@@ -135,7 +135,10 @@ model Account {
 }
 
 model SystemState {
-  id          String   @id @default("maintenance")
-  isUpdating  Boolean  @default(false)
-  updatedAt   DateTime @updatedAt
+  id          String    @id @default("maintenance")
+  isUpdating  Boolean   @default(false)
+  logs        Json      @default("[]")
+  errorMsg    String?
+  startedAt   DateTime?
+  updatedAt   DateTime  @updatedAt
 }

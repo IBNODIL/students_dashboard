@@ -2,92 +2,62 @@
 
 import { useEffect, useRef, useState } from "react";
 
-type Mode = "maintenance" | "seeding" | "done" | "error";
+type Mode = "maintenance" | "done" | "error";
 
 export default function UpdateTimePage() {
   const [mode, setMode] = useState<Mode>("maintenance");
   const [logs, setLogs] = useState<string[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
   const logEndRef = useRef<HTMLDivElement>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Auto-scroll to bottom of log
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
 
   useEffect(() => {
-    const isSeeding = sessionStorage.getItem("seed_sse_active");
-    if (!isSeeding) {
-      setMode("maintenance");
-      return;
+    async function poll() {
+      try {
+        const res = await fetch("/api/admin/seed-status", { cache: "no-store" });
+        const data = await res.json();
+
+        setLogs(data.logs ?? []);
+
+        if (data.errorMsg) {
+          setMode("error");
+          setErrorMsg(data.errorMsg);
+          if (pollRef.current) clearInterval(pollRef.current);
+          return;
+        }
+
+        if (!data.isUpdating && data.logs?.length > 0) {
+          // Finished successfully
+          setMode("done");
+          if (pollRef.current) clearInterval(pollRef.current);
+          setTimeout(() => {
+            window.location.href = "/";
+          }, 2000);
+          return;
+        }
+
+        if (!data.isUpdating && (!data.logs || data.logs.length === 0)) {
+          // Not currently updating and no logs — just a regular visitor
+          // who landed here without a seed running. Keep showing maintenance
+          // screen; it'll resolve on next poll if a seed starts, or stays here.
+          setMode("maintenance");
+        }
+      } catch {
+        // Network hiccup — keep polling, don't flip to error immediately
+      }
     }
 
-    // Admin triggered a seed — listen for log messages via BroadcastChannel
-    setMode("seeding");
-    const channel = new BroadcastChannel("seed_logs");
-
-    channel.onmessage = (evt) => {
-      const parsed = evt.data;
-      if (parsed?.log) {
-        setLogs((prev) => [...prev, parsed.log]);
-      }
-      if (parsed?.done) {
-        setMode("done");
-        channel.close();
-        sessionStorage.removeItem("seed_sse_active");
-        setTimeout(() => {
-          window.location.href = "/";
-        }, 2000);
-      }
-      if (parsed?.error) {
-        setMode("error");
-        setErrorMsg(parsed.error);
-        channel.close();
-        sessionStorage.removeItem("seed_sse_active");
-      }
-    };
+    poll();
+    pollRef.current = setInterval(poll, 2000);
 
     return () => {
-      channel.close();
+      if (pollRef.current) clearInterval(pollRef.current);
     };
   }, []);
-
-  // ── Maintenance screen (regular visitors) ────────────────────────────────
-  if (mode === "maintenance") {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 via-sky-50 to-blue-50">
-        <div className="text-center max-w-sm px-6">
-          <div className="flex justify-center mb-6">
-            <span className="text-5xl">🔧</span>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-3">
-            We&apos;ll be right back
-          </h1>
-          <p className="text-gray-500 text-sm leading-relaxed">
-            The dashboard is being updated with fresh data. This usually takes
-            less than a minute. Please refresh in a moment.
-          </p>
-          <div className="mt-8 flex justify-center">
-            <div className="flex gap-1">
-              {[0, 1, 2].map((i) => (
-                <span
-                  key={i}
-                  className="w-2 h-2 rounded-full bg-blue-400 animate-bounce"
-                  style={{ animationDelay: `${i * 0.15}s` }}
-                />
-              ))}
-            </div>
-          </div>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-6 text-xs text-blue-500 hover:underline"
-          >
-            Refresh page
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   // ── Done ─────────────────────────────────────────────────────────────────
   if (mode === "done") {
@@ -117,7 +87,7 @@ export default function UpdateTimePage() {
               {errorMsg}
             </p>
             {logs.length > 0 && (
-              <details className="mt-2">
+              <details className="mt-2" open>
                 <summary className="text-xs text-gray-500 cursor-pointer">
                   Show logs
                 </summary>
@@ -140,7 +110,39 @@ export default function UpdateTimePage() {
     );
   }
 
-  // ── Live log terminal (admin sees this during seeding) ────────────────────
+  // ── Maintenance / live progress (same screen, logs show if present) ───────
+  const isSeedingVisible = logs.length > 0;
+
+  if (!isSeedingVisible) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 via-sky-50 to-blue-50">
+        <div className="text-center max-w-sm px-6">
+          <div className="flex justify-center mb-6">
+            <span className="text-5xl">🔧</span>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-3">
+            We&apos;ll be right back
+          </h1>
+          <p className="text-gray-500 text-sm leading-relaxed">
+            The dashboard is being updated with fresh data. This usually takes
+            less than a minute. Please wait…
+          </p>
+          <div className="mt-8 flex justify-center">
+            <div className="flex gap-1">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className="w-2 h-2 rounded-full bg-blue-400 animate-bounce"
+                  style={{ animationDelay: `${i * 0.15}s` }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-950 flex flex-col">
       <div className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
@@ -156,9 +158,6 @@ export default function UpdateTimePage() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-4 font-mono text-sm">
-        {logs.length === 0 && (
-          <p className="text-gray-600 text-xs">Connecting to seed stream…</p>
-        )}
         {logs.map((line, i) => (
           <div key={i} className="flex gap-3 mb-1">
             <span className="text-gray-600 select-none w-6 text-right shrink-0">
@@ -186,7 +185,7 @@ export default function UpdateTimePage() {
 
       <div className="border-t border-gray-800 px-6 py-3 text-xs text-gray-600 flex items-center gap-2">
         <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-        Visitors are on the maintenance page until this completes
+        Visitors are on the maintenance page until this completes — polling every 2s
       </div>
     </div>
   );
