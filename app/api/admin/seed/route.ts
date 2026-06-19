@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPrisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
-export const maxDuration = 60; // Netlify Functions hard cap on most plans
+// Netlify Functions: default plans cap background/scheduled functions much
+// higher than synchronous ones. A full seed run (4 fetches + DB writes) took
+// ~97s locally, so 60s is NOT enough — this needs Netlify's higher-tier
+// function timeout (Pro/Enterprise background functions, or a queue-based
+// approach) if your plan caps regular functions at 26s/60s. See note below.
+export const maxDuration = 300;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -168,12 +173,15 @@ export async function POST(_req: NextRequest) {
     await log("🔒 Maintenance mode ON — visitors redirected…");
 
     // ── 1. Fetch all 4 APIs in parallel (each with its own timeout) ───────
-    await log("📡 Fetching from 4 APIs in parallel (20s timeout each)…");
+    // Google Apps Script web apps can be slow to "wake up" and serialize
+    // large datasets, so attendance/grade get a longer timeout than the
+    // faster credit/live-status APIs.
+    await log("📡 Fetching from 4 APIs in parallel…");
 
     const [attResult, gradeResult, creditResult, liveResult] = await Promise.allSettled([
-      fetchWithTimeout(ATTENDANCE_URL, { cache: "no-store", redirect: "follow" }, "Attendance API"),
-      fetchWithTimeout(GRADE_URL,      { cache: "no-store", redirect: "follow" }, "Grade API"),
-      fetchWithTimeout(CREDIT_URL,     { cache: "no-store", redirect: "follow" }, "Credit API"),
+      fetchWithTimeout(ATTENDANCE_URL, { cache: "no-store", redirect: "follow" }, "Attendance API", 45000),
+      fetchWithTimeout(GRADE_URL,      { cache: "no-store", redirect: "follow" }, "Grade API", 45000),
+      fetchWithTimeout(CREDIT_URL,     { cache: "no-store", redirect: "follow" }, "Credit API", 30000),
       fetchWithTimeout(
         LIVE_STATUS_URL,
         {
