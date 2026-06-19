@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPrisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
-// Netlify Functions: default plans cap background/scheduled functions much
-// higher than synchronous ones. A full seed run (4 fetches + DB writes) took
-// ~97s locally, so 60s is NOT enough — this needs Netlify's higher-tier
-// function timeout (Pro/Enterprise background functions, or a queue-based
-// approach) if your plan caps regular functions at 26s/60s. See note below.
-export const maxDuration = 300;
+// Vercel function duration: Hobby plan caps at 60s, Pro plan allows up to
+// 300s (5 min) on the standard tier, more with Fluid Compute. Your seed job
+// has taken ~97s locally, so the Hobby plan's 60s cap is NOT enough —
+// you'll need Vercel Pro for this route to reliably finish. Keep this value
+// in sync with the "functions" entry for this route in vercel.json.
+export const maxDuration = 120;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

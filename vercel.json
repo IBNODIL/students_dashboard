@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/seed",
+      "schedule": "0 13 * * *"
+    }
+  ],
+  "functions": {
+    "app/api/admin/seed/route.ts": {
+      "maxDuration": 120
+    },
+    "app/api/cron/seed/route.ts": {
+      "maxDuration": 120
+    }
+  }
+}
