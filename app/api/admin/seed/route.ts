@@ -94,6 +94,31 @@ function lessonKey(
 }
 
 /**
+ * Fetch with a hard timeout. If the server never responds, this throws
+ * a clear "timed out" error instead of hanging forever (which would
+ * otherwise silently exhaust the whole serverless function's runtime).
+ */
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  label: string,
+  timeoutMs = 20000
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error(`${label} timed out after ${timeoutMs / 1000}s (no response)`);
+    }
+    throw new Error(`${label} request failed: ${err instanceof Error ? err.message : String(err)}`);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
  * Safely parses a fetch Response as JSON. If the body isn't valid JSON
  * (e.g. an HTML error/login page returned with a 200 status), throws a
  * clear error naming the source and showing a snippet of what came back,
@@ -142,22 +167,50 @@ export async function POST(_req: NextRequest) {
     });
     await log("🔒 Maintenance mode ON — visitors redirected…");
 
-    // ── 1. Fetch all 4 APIs in parallel ───────────────────────────────────
-    await log("📡 Fetching from 4 APIs in parallel…");
-    const [attRes, gradeRes, creditRes, liveRes] = await Promise.all([
-      fetch(ATTENDANCE_URL,  { cache: "no-store", redirect: "follow" }),
-      fetch(GRADE_URL,       { cache: "no-store", redirect: "follow" }),
-      fetch(CREDIT_URL,      { cache: "no-store", redirect: "follow" }),
-      fetch(LIVE_STATUS_URL, {
-        method: "POST",
-        cache: "no-store",
-        redirect: "follow",
-        headers: {
-          Authorization: `Bearer ${process.env.JDU_LIVE_API_TOKEN ?? ""}`,
-          "Content-Type": "application/json",
+    // ── 1. Fetch all 4 APIs in parallel (each with its own timeout) ───────
+    await log("📡 Fetching from 4 APIs in parallel (20s timeout each)…");
+
+    const [attResult, gradeResult, creditResult, liveResult] = await Promise.allSettled([
+      fetchWithTimeout(ATTENDANCE_URL, { cache: "no-store", redirect: "follow" }, "Attendance API"),
+      fetchWithTimeout(GRADE_URL,      { cache: "no-store", redirect: "follow" }, "Grade API"),
+      fetchWithTimeout(CREDIT_URL,     { cache: "no-store", redirect: "follow" }, "Credit API"),
+      fetchWithTimeout(
+        LIVE_STATUS_URL,
+        {
+          method: "POST",
+          cache: "no-store",
+          redirect: "follow",
+          headers: {
+            Authorization: `Bearer ${process.env.JDU_LIVE_API_TOKEN ?? ""}`,
+            "Content-Type": "application/json",
+          },
         },
-      }),
+        "Live status API (data.jdu.uz)"
+      ),
     ]);
+
+    // Report exactly which ones succeeded/failed before throwing, so the
+    // log is useful even though we still abort on any single failure.
+    const labels = ["Attendance API", "Grade API", "Credit API", "Live status API (data.jdu.uz)"];
+    const results = [attResult, gradeResult, creditResult, liveResult];
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i];
+      if (r.status === "fulfilled") {
+        await log(`  ✅ ${labels[i]} responded (${r.value.status})`);
+      } else {
+        await log(`  ❌ ${labels[i]} failed: ${r.reason instanceof Error ? r.reason.message : String(r.reason)}`);
+      }
+    }
+
+    const failed = results.find((r) => r.status === "rejected");
+    if (failed && failed.status === "rejected") {
+      throw failed.reason instanceof Error ? failed.reason : new Error(String(failed.reason));
+    }
+
+    const attRes    = (attResult    as PromiseFulfilledResult<Response>).value;
+    const gradeRes   = (gradeResult  as PromiseFulfilledResult<Response>).value;
+    const creditRes  = (creditResult as PromiseFulfilledResult<Response>).value;
+    const liveRes    = (liveResult   as PromiseFulfilledResult<Response>).value;
 
     if (!attRes.ok)    throw new Error(`Attendance API ${attRes.status}`);
     if (!gradeRes.ok)  throw new Error(`Grade API ${gradeRes.status}`);
