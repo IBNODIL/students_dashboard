@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   buildStatsFromProfiles,
-  filterToGroupedProfiles,
-  loadRawStudentsForAggregation,
+  filterGroupedProfiles,
   type GroupedQueryFilters,
 } from "@/lib/student-data";
-import { getPrisma } from "@/lib/prisma";
+import {
+  getCachedLiveAttendanceStatuses,
+  getCachedGroupedProfiles,
+} from "@/lib/cached-student-data";
 
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
@@ -29,15 +31,10 @@ export async function GET(req: NextRequest) {
   const page = Math.max(1, parseInt(sp.get("page") ?? "1"));
   const limit = Math.min(100, Math.max(1, parseInt(sp.get("limit") ?? "20")));
 
-  const rawStudents = await loadRawStudentsForAggregation();
-
-  const prisma = getPrisma();
-
-  // Get ALL students' attendance statuses first
-  const allAttendanceRecords = await prisma.attendance.findMany({
-    orderBy: { createdAt: "desc" },
-    distinct: ["studentId"],
-  });
+  const [groupedProfiles, allAttendanceRecords] = await Promise.all([
+    getCachedGroupedProfiles(),
+    getCachedLiveAttendanceStatuses(),
+  ]);
 
   const studentStatusMap = new Map<
     number,
@@ -58,8 +55,8 @@ export async function GET(req: NextRequest) {
             ? ("exit" as const)
             : ("do not come" as const),
       inside: attendance.inside,
-      timeLog: attendance.timeLog?.toISOString() ?? null,
-      lastUpdated: attendance.createdAt.toISOString(),
+      timeLog: attendance.timeLog ? new Date(attendance.timeLog).toISOString() : null,
+      lastUpdated: new Date(attendance.createdAt).toISOString(),
     });
   }
 
@@ -74,7 +71,7 @@ export async function GET(req: NextRequest) {
 
   // Filter students by their attendance status BEFORE applying course filters
   const studentIdsWithStatus = Array.from(studentStatusMap.entries())
-    .filter(([_, attendance]) => {
+    .filter(([, attendance]) => {
       if (!requestedStatus) return true;
       return attendance.status === requestedStatus;
     })
@@ -83,8 +80,8 @@ export async function GET(req: NextRequest) {
   // Create a modified filters object that doesn't include status
   const filtersWithoutStatus = { ...filters, status: "" };
 
-  // Apply course-level filters
-  const result = filterToGroupedProfiles(rawStudents, filtersWithoutStatus);
+  // Apply course-level filters (fast: filters already-grouped profiles, doesn't re-group raw rows)
+  const result = filterGroupedProfiles(groupedProfiles, filtersWithoutStatus);
 
   // Further filter by student IDs that match the status filter
   const statusFilteredResult = requestedStatus

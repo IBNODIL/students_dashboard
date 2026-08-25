@@ -36,7 +36,20 @@ export function LoginForm() {
       }
 
       router.refresh();
-      router.push("/");
+
+      const loggedInUser = result.data?.user as
+        | { role?: string; studentId?: number | null }
+        | undefined;
+
+      if (loggedInUser?.role === "ADMIN" || loggedInUser?.role === "SUPERADMIN") {
+        router.push("/");
+      } else if (loggedInUser?.role === "STUDENT") {
+        router.push(
+          typeof loggedInUser.studentId === "number" ? `/${loggedInUser.studentId}` : "/students"
+        );
+      } else {
+        router.push("/");
+      }
     } catch (err) {
       console.error(err);
       setError("An error occurred");

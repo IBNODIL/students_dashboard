@@ -4,7 +4,6 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState } from "react";
-import { Input } from "@/components/ui/input";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
 import {
@@ -57,7 +56,6 @@ const filterSchema = z
         });
         return;
       }
-
       if (
         value &&
         (Number(value) < 0 ||
@@ -71,18 +69,8 @@ const filterSchema = z
         });
       }
     };
-
-    validatePercent(
-      data.attendancePercent,
-      data.attendanceOperator,
-      "attendancePercent"
-    );
-
-    validatePercent(
-      data.gradePercent,
-      data.gradeOperator,
-      "gradePercent"
-    );
+    validatePercent(data.attendancePercent, data.attendanceOperator, "attendancePercent");
+    validatePercent(data.gradePercent, data.gradeOperator, "gradePercent");
   });
 
 const defaultValues: FilterValues = {
@@ -94,19 +82,19 @@ const defaultValues: FilterValues = {
   teacherId: "",
   room: "",
   lessonTime: "",
-
   attendanceOperator: "",
   attendancePercent: "",
-
   gradeOperator: "",
   gradePercent: "",
-
   status: "all",
 };
 
 interface FiltersFormProps {
   onFilterChange: (values: FilterValues) => void;
   isLoading?: boolean;
+  onDropdownOpen?: () => void;
+  onDropdownClose?: () => void;
+  closeDropdownsSignal?: number;
   nameOptions?: string[];
   studentIdOptions?: string[];
   groupOptions?: string[];
@@ -123,6 +111,9 @@ interface FiltersFormProps {
 export function FiltersForm({
   onFilterChange,
   isLoading,
+  onDropdownOpen,
+  onDropdownClose,
+  closeDropdownsSignal,
   nameOptions = [],
   studentIdOptions = [],
   groupOptions = [],
@@ -137,14 +128,13 @@ export function FiltersForm({
 }: FiltersFormProps) {
   const { t } = useLanguage();
   const [submittedFilters, setSubmittedFilters] = useState<FilterValues>(defaultValues);
+
   const {
     control,
     register,
-    watch,
     setValue,
     reset,
     handleSubmit,
-    formState: { errors },
   } = useForm<FilterValues>({
     resolver: zodResolver(filterSchema),
     defaultValues,
@@ -157,7 +147,7 @@ export function FiltersForm({
     placeholder: string,
     options: string[]
   ) => (
-    <div className="space-y-1.5">
+    <div className="space-y-1.5" key={name}>
       <Label htmlFor={id} className="text-xs text-muted-foreground">
         {label}
       </Label>
@@ -165,18 +155,28 @@ export function FiltersForm({
         name={name}
         control={control}
         render={({ field }) => (
-          <Combobox items={options.slice(0, 10)} value={field.value} onValueChange={field.onChange}>
+          <Combobox
+            key={`${name}-${closeDropdownsSignal ?? 0}`}
+            items={options}
+            value={field.value}
+            onValueChange={field.onChange}
+            onOpenChange={(open) => {
+              if (open) onDropdownOpen?.();
+              else onDropdownClose?.();
+            }}
+          >
             <ComboboxInput
               id={id}
               placeholder={placeholder}
               className="h-8 text-sm"
-              {...field}
               disabled={isLoading}
+              onBlur={field.onBlur}
+              ref={field.ref}
             />
-            <ComboboxContent>
-              <ComboboxEmpty>No items found.</ComboboxEmpty>
+            <ComboboxContent className="max-h-56 overflow-y-auto">
+              <ComboboxEmpty>{t.noItemsFound}</ComboboxEmpty>
               <ComboboxList>
-                {(item: string) => (
+                {(item) => (
                   <ComboboxItem key={item} value={item}>
                     {item}
                   </ComboboxItem>
@@ -198,25 +198,26 @@ export function FiltersForm({
       <Label className="text-xs text-muted-foreground">
         {label}
       </Label>
-
       <div className="flex gap-2">
-        <Select
-          value={watch(operatorField) || "none"}
-          onValueChange={(v) =>
-            setValue(operatorField, v === "none" ? "" : v)
-          }
-        >
-          <SelectTrigger className="w-28 h-8">
-            <SelectValue />
-          </SelectTrigger>
-
-          <SelectContent>
-            <SelectItem value="none">Any</SelectItem>
-            <SelectItem value="gt">Kottaroq</SelectItem>
-            <SelectItem value="lt">Kichikroq</SelectItem>
-          </SelectContent>
-        </Select>
-
+        <Controller
+          name={operatorField}
+          control={control}
+          render={({ field }) => (
+            <Select
+              value={field.value || "none"}
+              onValueChange={(v) => field.onChange(v === "none" ? "" : v)}
+            >
+              <SelectTrigger className="w-28 h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">{t.percentOperatorAny}</SelectItem>
+                <SelectItem value="gt">{t.percentOperatorGreater}</SelectItem>
+                <SelectItem value="lt">{t.percentOperatorSmaller}</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        />
         <InputGroup className="flex-1 h-8">
           <InputGroupInput
             type="number"
@@ -227,23 +228,22 @@ export function FiltersForm({
             onInput={(e) => {
               const input = e.currentTarget;
               const value = Number(input.value);
-
               if (value > 100) input.value = "100";
               if (value < 0) input.value = "0";
             }}
           />
-          <InputGroupAddon align="inline-end">
-            %
-          </InputGroupAddon>
+          <InputGroupAddon align="inline-end">%</InputGroupAddon>
         </InputGroup>
       </div>
     </div>
   );
 
-  // Qidiruv tugmasi bosilganda yoki Enter bosilganda ishlaydi
+  // Native form submission covers both the Search button and Enter.
   const onSubmit = (values: FilterValues) => {
-    console.log("FILTER SUBMITTED", values);
-
+    // Closes the active combobox/select before the loading overlay appears.
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
     setSubmittedFilters(values);
     onFilterChange(values);
   };
@@ -254,14 +254,13 @@ export function FiltersForm({
     onFilterChange(defaultValues);
   };
 
-  const statusValue = watch("status");
-  const lessonTimeValue = watch("lessonTime");
+  const statusValue = submittedFilters.status;
+  const lessonTimeValue = submittedFilters.lessonTime;
   const hasActiveFilters = Object.entries(submittedFilters).some(([k, v]) =>
     k === "status" ? v !== "all" : v !== ""
   );
 
   return (
-    // Grid elementlari form ichiga olindi, onSubmit hodisasi biriktirildi
     <form
       onSubmit={handleSubmit(onSubmit)}
       className="rounded-xl border bg-card p-4 shadow-lg space-y-4"
@@ -276,20 +275,19 @@ export function FiltersForm({
             </span>
           )}
         </div>
-        <div className="flex align-center">
+        <div className="flex items-center gap-2">
           <Button
             type="submit"
             size="sm"
-            className="h-8 px-4 gap-2 text-xs font-medium mr-2"
+            className="h-8 px-4 gap-2 text-xs font-medium"
             disabled={isLoading}
           >
             <Search className="h-3.5 w-3.5" />
-            {t.searchButton || "Qidirish"}
+            {t.searchButton || "Search"}
           </Button>
-
           {hasActiveFilters && (
             <Button
-              type="button" // Reset tugmasi formani yuborib yubormasligi uchun type="button" qilindi
+              type="button"
               variant="ghost"
               size="sm"
               onClick={handleReset}
@@ -305,101 +303,41 @@ export function FiltersForm({
       {hasActiveFilters && (
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
           <div className="rounded-xl border border-border bg-muted/50 px-3 py-2">
-            <div className="text-sm text-muted-foreground">Total students</div>
+            <div className="text-sm text-muted-foreground">{t.totalStudents}</div>
             <div className="mt-1 text-lg font-semibold text-foreground">{totalCount}</div>
           </div>
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
-            <div className="text-sm text-emerald-700">Present</div>
+            <div className="text-sm text-emerald-700">{t.statusPresent}</div>
             <div className="mt-1 text-lg font-semibold text-emerald-900">{presentCount}</div>
           </div>
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
-            <div className="text-sm text-amber-700">Exit</div>
+            <div className="text-sm text-amber-700">{t.statusExit}</div>
             <div className="mt-1 text-lg font-semibold text-amber-900">{exitCount}</div>
           </div>
           <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2">
-            <div className="text-sm text-rose-700">Absent</div>
+            <div className="text-sm text-rose-700">{t.statusAbsent}</div>
             <div className="mt-1 text-lg font-semibold text-rose-900">{absentCount}</div>
           </div>
         </div>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-        {renderComboboxField(
-          "name",
-          "name",
-          t.labelFullName,
-          t.placeholderName,
-          nameOptions
-        )}
-
-        {renderComboboxField(
-          "studentId",
-          "studentId",
-          t.labelStudentId,
-          t.placeholderStudentId,
-          studentIdOptions
-        )}
-
-        {renderComboboxField(
-          "group",
-          "group",
-          t.labelGroup,
-          t.placeholderGroup,
-          groupOptions
-        )}
-
-        {renderComboboxField(
-          "subject",
-          "subject",
-          t.labelSubject,
-          t.placeholderSubject,
-          subjectOptions
-        )}
-
-        {renderComboboxField(
-          "teacher",
-          "teacher",
-          t.labelTeacher,
-          t.placeholderTeacher,
-          teacherOptions
-        )}
-
-        {renderComboboxField(
-          "teacherId",
-          "teacherId",
-          t.labelTeacherId,
-          t.placeholderTeacherId,
-          teacherIdOptions
-        )}
-
-        {renderPercentFilter(
-          "Attendance %",
-          "attendanceOperator",
-          "attendancePercent"
-        )}
-
-        {renderPercentFilter(
-          "Grades %",
-          "gradeOperator",
-          "gradePercent"
-        )}
-
-        {renderComboboxField(
-          "room",
-          "room",
-          t.labelRoom,
-          "e.g. 302",
-          roomOptions
-        )}
+        {renderComboboxField("name", "name", t.labelFullName, t.placeholderName, nameOptions)}
+        {renderComboboxField("studentId", "studentId", t.labelStudentId, t.placeholderStudentId, studentIdOptions)}
+        {renderComboboxField("group", "group", t.labelGroup, t.placeholderGroup, groupOptions)}
+        {renderComboboxField("subject", "subject", t.labelSubject, t.placeholderSubject, subjectOptions)}
+        {renderComboboxField("teacher", "teacher", t.labelTeacher, t.placeholderTeacher, teacherOptions)}
+        {renderComboboxField("teacherId", "teacherId", t.labelTeacherId, t.placeholderTeacherId, teacherIdOptions)}
+        {renderPercentFilter(t.labelAttendancePercent, "attendanceOperator", "attendancePercent")}
+        {renderPercentFilter(t.labelGradePercent, "gradeOperator", "gradePercent")}
+        {renderComboboxField("room", "room", t.labelRoom, t.placeholderRoom, roomOptions)}
 
         {/* Lesson Time */}
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">{t.labelLessonTime}</Label>
           <Select
             value={lessonTimeValue || "all"}
-            onValueChange={(v) =>
-              setValue("lessonTime", v === "all" ? "" : v)
-            }
+            onValueChange={(v) => setValue("lessonTime", v === "all" ? "" : v)}
             disabled={isLoading}
           >
             <SelectTrigger className="h-8 text-sm w-full">
@@ -430,7 +368,7 @@ export function FiltersForm({
             <SelectContent>
               <SelectItem value="all">{t.allStatuses}</SelectItem>
               <SelectItem value="present">{t.statusPresent}</SelectItem>
-              <SelectItem value="exit">Exit</SelectItem>
+              <SelectItem value="exit">{t.statusExit}</SelectItem>
               <SelectItem value="absent">{t.statusAbsent}</SelectItem>
             </SelectContent>
           </Select>

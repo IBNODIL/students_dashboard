@@ -10,135 +10,208 @@ datasource db {
 }
 
 model Teacher {
-  id      String   @id @map("id")
-  name    String   @map("name")
+  id String @id @map("id")
+  name String @map("name")
   lessons Lesson[]
-
+  user User?
   @@map("teachers")
 }
 
 model Group {
-  id      Int       @id @default(autoincrement()) @map("id")
-  name    String    @unique @map("name")
+  id Int @id @default(autoincrement()) @map("id")
+  name String @unique @map("name")
   lessons Lesson[]
-
   @@map("groups")
 }
 
 model Student {
-  studentId   Int            @id @map("student_id")
-  name        String         @map("name")
-  jduId       String?        @map("jdu_id")
-  lessons     Lesson[]
+  studentId Int @id @map("student_id")
+  name String @map("name")
+  jduId String? @map("jdu_id")
+  phone String? @map("phone")
+  publicKey String? @unique @map("public_key")
   attendances Attendance[]
+  lessons Lesson[]
   credits StudentCredit?
-
+  user User?
   @@map("students")
 }
 
 model Lesson {
-  id                String  @id @default(cuid()) @map("id")
-  studentId         Int     @map("student_id")
-  teacherId         String  @map("teacher_id")
-  groupId           Int     @map("group_id")
-  subjectName       String  @map("subject_name")
-  totalCurrentGrade Float   @default(0) @map("total_current_grade")
-  totalFullGrade    Float   @default(0) @map("total_full_grade")
-  percentageGrade   Float   @default(0) @map("percentage_grade")
-  assignments       Json    @default("[]") @map("assignments")
-  attendances       Json    @default("[]") @map("attendances")
-
+  id String @id @default(cuid()) @map("id")
+  studentId Int @map("student_id")
+  teacherId String @map("teacher_id")
+  groupId Int @map("group_id")
+  subjectName String @map("subject_name")
+  totalCurrentGrade Float @default(0) @map("total_current_grade")
+  totalFullGrade Float @default(0) @map("total_full_grade")
+  percentageGrade Float @default(0) @map("percentage_grade")
+  assignments Json @default("[]") @map("assignments")
+  attendances Json @default("[]") @map("attendances")
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
   student Student @relation(fields: [studentId], references: [studentId], onDelete: Cascade)
   teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  group   Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
-
   @@unique([studentId, subjectName, teacherId, groupId], map: "lessons_student_subject_teacher_group_key")
   @@map("lessons")
 }
 
 model Attendance {
-  id        String   @id @default(cuid()) @map("id")
-  studentId Int      @map("student_id")
-  inside    Int      @map("inside")
-  timeLog   DateTime? @map("time_log")
+  id String @id @default(cuid()) @map("id")
+  studentId Int @map("student_id")
+  inside Int @map("inside")
+  timeLog DateTime? @map("time_log")
   createdAt DateTime @default(now()) @map("created_at")
-
   student Student @relation(fields: [studentId], references: [studentId], onDelete: Cascade)
-
   @@map("attendances")
 }
 
 model StudentCredit {
-  id          String @id @default(cuid())
-
-  studentId   Int    @unique @map("student_id")
-
-  grades      Json   @default("{}")
-  totals      Json   @default("{}")
-  byDepartment Json  @default("{}")
-
+  id String @id @default(cuid())
+  studentId Int @unique @map("student_id")
+  grades Json @default("{}")
+  totals Json @default("{}")
+  byDepartment Json @default("{}")
   student Student @relation(fields: [studentId], references: [studentId], onDelete: Cascade)
-
   @@map("student_credits")
 }
 
-model User {
-  id            String    @id @default(cuid()) @map("id")
-  email         String    @unique @map("email")
-  emailVerified Boolean   @default(false)
-  name          String?   @map("name")
-  password      String?   @map("password")
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
-  sessions  Session[]
-  accounts  Account[]
+model SystemState {
+  id String @id @default("maintenance")
+  isUpdating Boolean @default(false)
+  logs Json @default("[]")
+  errorMsg String?
+  startedAt DateTime?
+  tempData Json? @default("{}")
+  updatedAt DateTime @updatedAt
+}
 
+model SeedSource {
+  id String @id @default(cuid())
+  name String
+  url String
+  type SeedSourceType
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([type])
+  @@index([active])
+  @@map("seed_sources")
+}
+
+model User {
+  id String @id @default(cuid())
+  email String @unique
+  emailVerified Boolean @default(false) @map("email_verified")
+  password String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  name String?
+  active Boolean @default(true)
+  role Role @default(TEACHER)
+  studentId Int? @unique @map("student_id")
+  teacherId String? @unique @map("teacher_id")
+  createdById String?
+  deleteAfter DateTime?
+  deletedAt DateTime?
+  updatedById String?
+  userNumber Int? @unique
+  accounts Account[]
+  actorLogs AuditLog[] @relation("ActorLogs")
+  targetLogs AuditLog[] @relation("TargetLogs")
+  sessions Session[]
+  student Student? @relation(fields: [studentId], references: [studentId])
+  teacher Teacher? @relation(fields: [teacherId], references: [id])
   @@map("users")
 }
 
+model SystemCounter {
+  id Int @id @default(1)
+  nextSuperAdmin Int @default(10000001)
+  nextAdmin Int @default(20000001)
+  nextTeacher Int @default(30000001)
+  nextStudent Int @default(40000001)
+}
+
 model Session {
-  id        String   @id @default(cuid())
-  userId    String   
-  token     String   @unique
-  expiresAt DateTime 
-  ipAddress String?  
-  userAgent String?  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  id String @id @default(cuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @map("expires_at")
+  ipAddress String? @map("ip_address")
+  token String @unique
+  updatedAt DateTime @updatedAt @map("updated_at")
+  userAgent String? @map("user_agent")
+  userId String @map("user_id")
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   @@map("sessions")
 }
 
 model Account {
-  id                 String   @id @default(cuid())
-  userId             String   
-  accountId          String   
-  providerId         String   
-  type               String   @default("oauth") // Mana shu ustun majburiy ochilishi kerak
-  password           String?  @db.Text
-  refreshToken       String?  @db.Text
-  accessToken        String?  @db.Text
-  expiresAt          Int?
-  tokenType          String?
-  scope              String?
-  idToken            String?  @db.Text
-  sessionState       String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
+  id String @id @default(cuid())
+  scope String?
+  password String?
+  accessToken String?
+  expiresAt Int?
+  idToken String?
+  refreshToken String?
+  sessionState String?
+  tokenType String?
+  userId String @map("user_id")
+  accountId String @map("account_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  providerId String @map("provider_id")
+  updatedAt DateTime @updatedAt @map("updated_at")
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   @@map("accounts")
 }
 
-model SystemState {
-  id          String    @id @default("maintenance")
-  isUpdating  Boolean   @default(false)
-  logs        Json      @default("[]")
-  errorMsg    String?
-  startedAt   DateTime?
-  updatedAt   DateTime  @updatedAt
+model AuditLog {
+  id String @id @default(cuid())
+  actorId String
+  targetUserId String?
+  action AuditAction
+  description String
+  oldData Json?
+  newData Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  actor User @relation("ActorLogs", fields: [actorId], references: [id], onDelete: Cascade)
+  targetUser User? @relation("TargetLogs", fields: [targetUserId], references: [id])
+  @@index([actorId])
+  @@index([targetUserId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+enum Role {
+  SUPERADMIN
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  RESET_PASSWORD
+  DEACTIVATE
+  ACTIVATE
+  DELETE
+  PERMANENT_DELETE
+  SEED_SOURCE_CREATE
+  SEED_SOURCE_UPDATE
+  SEED_SOURCE_DELETE
+}
+
+enum SeedSourceType {
+  ATTENDANCE
+  GRADES
+  CREDITS
+  LIVE_STATUS
+}
+
+enum UserStatus {
+  ACTIVE
+  DEACTIVATED
+  PENDING_DELETE
 }

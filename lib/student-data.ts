@@ -11,6 +11,72 @@ import type {
 } from "@/lib/types";
 import { getPrisma } from "@/lib/prisma";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function parseCreditData(
+  grades: unknown,
+  totals: unknown,
+  byDepartment: unknown,
+): StudentWithCourses["gradesData"] | undefined {
+  if (!isRecord(grades) || !isRecord(totals) || !isRecord(byDepartment)) {
+    return undefined;
+  }
+
+  const totalCreditsPassed = totals.total_credits_passed;
+  const totalCreditsGraded = totals.total_credits_graded;
+  const percentagePassed = totals.percentage_passed;
+  if (
+    typeof totalCreditsPassed !== "number" ||
+    typeof totalCreditsGraded !== "number" ||
+    typeof percentagePassed !== "number"
+  ) {
+    return undefined;
+  }
+
+  const parsedGrades: Record<string, Record<string, string>> = {};
+  for (const [department, courses] of Object.entries(grades)) {
+    if (!isRecord(courses)) return undefined;
+    const parsedCourses: Record<string, string> = {};
+    for (const [course, grade] of Object.entries(courses)) {
+      if (typeof grade !== "string") return undefined;
+      parsedCourses[course] = grade;
+    }
+    parsedGrades[department] = parsedCourses;
+  }
+
+  const parsedDepartments: Record<string, {
+    total_credits_passed: number;
+    total_credits_graded: number;
+    percentage_passed: number;
+  }> = {};
+  for (const [department, value] of Object.entries(byDepartment)) {
+    if (!isRecord(value)) return undefined;
+    const passed = value.total_credits_passed;
+    const graded = value.total_credits_graded;
+    const percentage = value.percentage_passed;
+    if (typeof passed !== "number" || typeof graded !== "number" || typeof percentage !== "number") {
+      return undefined;
+    }
+    parsedDepartments[department] = {
+      total_credits_passed: passed,
+      total_credits_graded: graded,
+      percentage_passed: percentage,
+    };
+  }
+
+  return {
+    grades: parsedGrades,
+    totals: {
+      total_credits_passed: totalCreditsPassed,
+      total_credits_graded: totalCreditsGraded,
+      percentage_passed: percentagePassed,
+    },
+    by_department: parsedDepartments,
+  };
+}
+
 export const STATUS_POINTS: Record<string, number> = {
   P: 1,
   L: 0.5,
@@ -133,6 +199,7 @@ export function buildStudentProfileFromRecords(
     student_id: firstRecord.student_id,
     student_name: firstRecord.student_name,
     group_name: groupLabels || firstRecord.group_name,
+    public_key: firstRecord.public_key ?? null,
     courses,
   };
 }
@@ -316,7 +383,7 @@ export async function getStudentProfileFromDb(
   if (!student) return null;
 
   const groupLabels = [
-    ...new Set(student.lessons.map((l) => l.group.name)),
+    ...new Set(student.lessons.map((l: { group: { name: string } }) => l.group.name)),
   ]
     .sort()
     .join(", ");
@@ -325,7 +392,58 @@ export async function getStudentProfileFromDb(
     student_id: student.studentId,
     student_name: student.name,
     group_name: groupLabels,
+    public_key: student.publicKey,
     courses: student.lessons.map(prismaLessonToCourse),
+  } as StudentWithCourses;
+}
+
+export async function getStudentProfileFromDbByPublicKey(
+  publicKey: string
+): Promise<StudentWithCourses | null> {
+  const prisma = getPrisma();
+  const student = await prisma.student.findUnique({
+    where: { publicKey },
+    include: {
+      lessons: { include: { teacher: true, group: true } },
+      credits: true,
+      attendances: { orderBy: { createdAt: "desc" }, take: 1 },
+    },
+  });
+  if (!student) return null;
+
+  const groupLabels = [...new Set(student.lessons.map((l: { group: { name: string } }) => l.group.name))]
+    .sort()
+    .join(", ");
+
+  const latestAttendance = student.attendances[0];
+  const gradesData = student.credits
+    ? parseCreditData(
+      student.credits.grades,
+      student.credits.totals,
+      student.credits.byDepartment,
+    )
+    : undefined;
+
+  return {
+    student_id: student.studentId,
+    student_name: student.name,
+    group_name: groupLabels,
+    public_key: student.publicKey,
+    courses: student.lessons.map(prismaLessonToCourse),
+    gradesData,
+    attendanceStatus: latestAttendance
+      ? {
+        status:
+          latestAttendance.inside === 1
+            ? "here"
+            : latestAttendance.inside === 0 && latestAttendance.timeLog
+              ? "exit"
+              : "do not come",
+        inside: latestAttendance.inside,
+        timeLog: latestAttendance.timeLog?.toISOString() ?? null,
+        lastUpdated: latestAttendance.createdAt.toISOString(),
+      }
+      : undefined,
   };
 }
 
@@ -373,7 +491,7 @@ export async function getFlatRecordsFromDb(): Promise<FlatRecord[]> {
   return flat;
 }
 
-export function useDatabase(): boolean {
+export function hasDatabaseConfiguration(): boolean {
   return Boolean(process.env.DATABASE_URL?.trim());
 }
 
@@ -488,8 +606,93 @@ export function filterToGroupedProfiles(
         student_id: firstRecord.student_id,
         student_name: firstRecord.student_name,
         group_name: groupLabels || firstRecord.group_name,
+        public_key: firstRecord.public_key ?? null,
         courses,
+      } as StudentWithCourses);
+    }
+  }
+
+  return result;
+}
+
+function recomputeCourseAttendanceStats(
+  course: Course,
+  attendances: StudentAttendanceRow[]
+): Course {
+  const valid = attendances.filter((a) => VALID_STATUSES.has(a.status));
+  const max_points = valid.length;
+  const total_points = valid.reduce((s, a) => s + a.points, 0);
+  const attendance_pct = max_points > 0 ? (total_points / max_points) * 100 : 0;
+
+  return {
+    ...course,
+    total_points,
+    max_points,
+    attendance_pct,
+    absence_pct: 100 - attendance_pct,
+    present_count: attendances.filter((a) => a.status === "P").length,
+    late_count: attendances.filter((a) => a.status === "L").length,
+    absent_count: attendances.filter((a) => a.status === "U").length,
+    excused_count: attendances.filter((a) => a.status === "E").length,
+    attendances,
+  };
+}
+
+/**
+ * Same course/name/subject/teacher/room/lessonTime filtering as
+ * filterToGroupedProfiles, but operates on ALREADY-GROUPED profiles instead
+ * of re-grouping every raw lesson row from scratch. Use this on the hot path
+ * (every filter keystroke) — pair it with a cache of buildAllProfilesFromAttendance
+ * output so the expensive grouping only happens once per cache window, not
+ * once per request.
+ */
+export function filterGroupedProfiles(
+  profiles: StudentWithCourses[],
+  f: GroupedQueryFilters
+): StudentWithCourses[] {
+  const name = f.name.trim().toLowerCase();
+  const group = f.group.trim().toLowerCase();
+  const studentId = f.studentId.trim();
+  const subject = f.subject.trim().toLowerCase();
+  const teacher = f.teacher.trim().toLowerCase();
+  const teacherId = f.teacherId.trim().toLowerCase();
+  const room = f.room.trim();
+  const lessonTime = f.lessonTime.trim();
+
+  const result: StudentWithCourses[] = [];
+
+  for (const profile of profiles) {
+    if (name && !profile.student_name.toLowerCase().includes(name)) continue;
+    if (group && !profile.group_name.toLowerCase().includes(group)) continue;
+    if (studentId && !String(profile.student_id).includes(studentId)) continue;
+
+    let courses = profile.courses;
+
+    if (subject || teacher || teacherId) {
+      courses = courses.filter((course) => {
+        if (subject && !course.subject_name.toLowerCase().includes(subject)) return false;
+        if (teacher && !course.teacher_name.toLowerCase().includes(teacher)) return false;
+        if (teacherId && !course.teacher_id.toLowerCase().includes(teacherId)) return false;
+        return true;
       });
+    }
+
+    if (room || lessonTime) {
+      const narrowed: Course[] = [];
+      for (const course of courses) {
+        const attendances = course.attendances.filter((a) => {
+          if (room && !String(a.lesson_room).includes(room)) return false;
+          if (lessonTime && String(a.lesson_time) !== lessonTime) return false;
+          return true;
+        });
+        if (attendances.length === 0) continue;
+        narrowed.push(recomputeCourseAttendanceStats(course, attendances));
+      }
+      courses = narrowed;
+    }
+
+    if (courses.length > 0) {
+      result.push(courses === profile.courses ? profile : { ...profile, courses });
     }
   }
 
@@ -500,7 +703,7 @@ let dbHasLessonsCache: boolean | undefined;
 
 /** True when DATABASE_URL is set and the `lessons` table has at least one row (seed has been run). */
 export async function isDatabasePopulated(): Promise<boolean> {
-  if (!useDatabase()) return false;
+  if (!hasDatabaseConfiguration()) return false;
   if (dbHasLessonsCache !== undefined) return dbHasLessonsCache;
   try {
     dbHasLessonsCache = (await getPrisma().lesson.count()) > 0;
@@ -514,10 +717,18 @@ export async function loadRawStudentsForAggregation(): Promise<Student[]> {
   const prisma = getPrisma();
   const lessons = await prisma.lesson.findMany({
     include: { student: true, group: true, teacher: true },
-  });
+  }) as Array<{
+    studentId: number; subjectName: string; teacherId: string;
+    totalCurrentGrade: number; totalFullGrade: number; percentageGrade: number;
+    assignments: unknown; attendances: unknown;
+    student: { name: string; publicKey: string | null };
+    group: { name: string };
+    teacher: { name: string };
+  }>;
   return lessons.map((lesson) => ({
     student_id: lesson.studentId,
     student_name: lesson.student.name,
+    public_key: lesson.student.publicKey,
     group_name: lesson.group.name,
     subject_name: lesson.subjectName,
     teacher_name: lesson.teacher.name,

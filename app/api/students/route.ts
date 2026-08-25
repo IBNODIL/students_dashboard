@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { FlatRecord } from "@/lib/types";
 import {
   buildStatsFromFlatRecords,
   getFlatRecordsFromDb,

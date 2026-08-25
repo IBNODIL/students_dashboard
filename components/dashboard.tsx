@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { StatsCards } from "@/components/stats-cards";
 import { FiltersForm } from "@/components/filters-form";
 import { StudentPanels } from "@/components/student-panels";
-import type { GroupedApiResponse, FilterValues, AttendanceStats } from "@/lib/types";
+import type { GroupedApiResponse, FilterValues, AttendanceStats, FilterOptions } from "@/lib/types";
 
 const EMPTY_STATS: AttendanceStats = {
   total_records: 0,
@@ -19,6 +19,16 @@ const EMPTY_STATS: AttendanceStats = {
   attendance_pct: 0,
   absence_pct: 0,
   unique_students: 0,
+};
+
+const EMPTY_FILTER_OPTIONS: FilterOptions = {
+  nameOptions: [],
+  studentIdOptions: [],
+  groupOptions: [],
+  subjectOptions: [],
+  teacherOptions: [],
+  teacherIdOptions: [],
+  roomOptions: [],
 };
 
 const DEFAULT_FILTERS: FilterValues = {
@@ -62,12 +72,30 @@ function buildQueryString(filters: FilterValues, page: number, limit = 20) {
   return params.toString();
 }
 
-export function Dashboard() {
+export function Dashboard({ onReady }: { onReady?: () => void }) {
   const [data, setData] = useState<GroupedApiResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [filterResetKey, setFilterResetKey] = useState(0);
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState<FilterValues>(DEFAULT_FILTERS);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Separate state for all filter options (fetched once at a high limit
+  // so autocomplete always shows the full list, not just the current page)
+  const [allFilterOptions, setAllFilterOptions] = useState<FilterOptions>(EMPTY_FILTER_OPTIONS);
+
+  // Fetch all filter options once on mount using a high limit
+  useEffect(() => {
+    fetch(`/api/students/grouped?page=1&limit=9999`)
+      .then((r) => r.json())
+      .then((json: GroupedApiResponse) => {
+        if (json.filterOptions) {
+          setAllFilterOptions(json.filterOptions);
+        }
+      })
+      .catch(() => {/* ignore — fallback to per-page options */});
+  }, []);
 
   const fetchData = useCallback(async (f: FilterValues, p: number) => {
     if (abortRef.current) abortRef.current.abort();
@@ -89,15 +117,22 @@ export function Dashboard() {
       }
     } finally {
       setIsLoading(false);
+      setIsInitialLoad(false);
+      onReady?.();
     }
-  }, []);
+  }, [onReady]);
 
   useEffect(() => {
-    fetchData(DEFAULT_FILTERS, 1);
+    const timer = setTimeout(() => {
+      void fetchData(DEFAULT_FILTERS, 1);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [fetchData]);
 
   const handleFilterChange = useCallback(
     (values: FilterValues) => {
+      // Close filter popovers and expanded student details before loading.
+      setFilterResetKey((key) => key + 1);
       setFilters(values);
       setPage(1);
       fetchData(values, 1);
@@ -107,6 +142,7 @@ export function Dashboard() {
 
   const handlePageChange = useCallback(
     (p: number) => {
+      setFilterResetKey((key) => key + 1);
       setPage(p);
       fetchData(filters, p);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -126,40 +162,62 @@ export function Dashboard() {
     total: 0,
   };
 
-  const {
-    nameOptions,
-    studentIdOptions,
-    groupOptions,
-    subjectOptions,
-    teacherOptions,
-    teacherIdOptions,
-    roomOptions,
-  } = data?.filterOptions ?? {
-    nameOptions: [],
-    studentIdOptions: [],
-    groupOptions: [],
-    subjectOptions: [],
-    teacherOptions: [],
-    teacherIdOptions: [],
-    roomOptions: [],
-  };
+  const showOverlay = isLoading && !isInitialLoad;
 
   return (
-    <div className="space-y-6">
+    <div className="relative space-y-6">
+
+      {/* ── Full-screen loading overlay (filter/search/page change) ────────── */}
+      {showOverlay && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background/70 backdrop-blur-sm"
+          aria-label="Loading results"
+        >
+          <div className="relative h-16 w-16">
+            <svg
+              className="h-16 w-16 animate-spin"
+              viewBox="0 0 64 64"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle
+                cx="32"
+                cy="32"
+                r="28"
+                stroke="currentColor"
+                strokeWidth="4"
+                className="text-muted-foreground/20"
+              />
+              <path
+                d="M60 32a28 28 0 0 0-28-28"
+                stroke="currentColor"
+                strokeWidth="4"
+                strokeLinecap="round"
+                className="text-primary"
+              />
+            </svg>
+          </div>
+          <p className="text-sm font-medium text-muted-foreground animate-pulse">
+            Searching…
+          </p>
+        </div>
+      )}
+
       {/* Stats overview */}
       <StatsCards stats={stats} />
 
-      {/* Filters */}
+      {/* Filters — use allFilterOptions so autocomplete shows every option */}
       <FiltersForm
         onFilterChange={handleFilterChange}
         isLoading={isLoading}
-        nameOptions={nameOptions}
-        studentIdOptions={studentIdOptions}
-        groupOptions={groupOptions}
-        subjectOptions={subjectOptions}
-        teacherOptions={teacherOptions}
-        teacherIdOptions={teacherIdOptions}
-        roomOptions={roomOptions}
+        closeDropdownsSignal={filterResetKey}
+        nameOptions={allFilterOptions.nameOptions}
+        studentIdOptions={allFilterOptions.studentIdOptions}
+        groupOptions={allFilterOptions.groupOptions}
+        subjectOptions={allFilterOptions.subjectOptions}
+        teacherOptions={allFilterOptions.teacherOptions}
+        teacherIdOptions={allFilterOptions.teacherIdOptions}
+        roomOptions={allFilterOptions.roomOptions}
         presentCount={attendanceSummary.present}
         absentCount={attendanceSummary.absent}
         exitCount={attendanceSummary.exit}
@@ -178,4 +236,3 @@ export function Dashboard() {
     </div>
   );
 }
-

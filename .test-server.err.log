@@ -1,0 +1,25 @@
+⨯ Error [PrismaClientKnownRequestError]: 
+Invalid `prisma.lesson.findMany()` invocation:
+
+
+The column `students.phone` does not exist in the current database.
+    at async (E:\students-dashboard\.next\standalone\.next\server\chunks\_0onw40x._.js:8:15224)
+    at async u (E:\students-dashboard\.next\standalone\.next\server\chunks\_0onw40x._.js:1:505)
+    at async n (E:\students-dashboard\.next\standalone\.next\server\chunks\_0r5bisd._.js:1:790) {
+  code: 'P2022',
+  meta: { modelName: 'Lesson', column: 'students.phone' },
+  clientVersion: '6.19.3'
+}
+Middleware maintenance check failed: Error: fetch failed
+    at context.fetch (E:\students-dashboard\node_modules\.pnpm\next@16.3.0_@babel+core@7.2_a46a59b10a6e1667d85d191c60c496fd\node_modules\next\dist\server\web\sandbox\context.js:321:60)
+    at rg (E:\students-dashboard\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__1v_hglv._.js:9:69181)
+    at handler (E:\students-dashboard\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__1v_hglv._.js:9:70517)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at E:\students-dashboard\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__1v_hglv._.js:9:41650
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at E:\students-dashboard\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__1v_hglv._.js:9:41637
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async tO (E:\students-dashboard\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__1v_hglv._.js:9:37656)
+    at async E:\students-dashboard\node_modules\.pnpm\next@16.3.0_@babel+core@7.2_a46a59b10a6e1667d85d191c60c496fd\node_modules\next\dist\server\web\sandbox\sandbox.js:115:26 {
+  
+}

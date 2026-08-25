@@ -19,7 +19,21 @@ interface SessionContextType {
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
+// Routes that don't require a session
 const PUBLIC_ROUTES = ["/login"];
+
+// Public student profiles live at /[publicKey] — 8-char base64url segment at root.
+// We identify them by path shape rather than a fixed prefix, since there's no
+// dedicated prefix anymore (the public key IS the path segment).
+function isStudentProfile(pathname: string): boolean {
+  const segments = pathname.split("/").filter(Boolean);
+  // Exactly one segment, 8 characters — matches our truncated HMAC keys
+  return segments.length === 1 && segments[0].length === 8;
+}
+
+function isPublicRoute(pathname: string): boolean {
+  return PUBLIC_ROUTES.includes(pathname) || isStudentProfile(pathname);
+}
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -37,28 +51,25 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
         if (response.ok) {
           const data = await response.json();
-          // Better Auth returns { session, user } structure
           const userData = data?.user;
           if (userData) {
             setUser(userData);
           } else {
             setUser(null);
-            // Redirect to login if not on a public route
-            if (!PUBLIC_ROUTES.includes(pathname)) {
+            if (!isPublicRoute(pathname)) {
               router.push("/login");
             }
           }
         } else {
           setUser(null);
-          // Redirect to login if not on a public route
-          if (!PUBLIC_ROUTES.includes(pathname)) {
+          if (!isPublicRoute(pathname)) {
             router.push("/login");
           }
         }
       } catch (error) {
         console.error("Failed to check session:", error);
         setUser(null);
-        if (!PUBLIC_ROUTES.includes(pathname)) {
+        if (!isPublicRoute(pathname)) {
           router.push("/login");
         }
       } finally {

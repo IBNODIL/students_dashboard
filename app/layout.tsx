@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "@/contexts/language-context";
 import { SessionProvider } from "@/contexts/session-context";
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-sans",
@@ -33,6 +34,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-gradient-to-b from-blue-50 via-sky-50 to-blue-50">
         <SessionProvider>
           <LanguageProvider>{children}</LanguageProvider>
+          <Toaster richColors />
         </SessionProvider>
       </body>
     </html>

@@ -11,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { StudentWithCourses } from "@/lib/types";
-import { overallLmsPercentFromCourses, courseLmsPercent } from "@/lib/grades";
 import { useLanguage } from "@/contexts/language-context";
 import {
   ChevronLeft,
@@ -66,13 +65,8 @@ function AttendancePctColor(pct: number) {
   return "text-rose-600 dark:text-rose-400";
 }
 
-function GradePctColor(pct: number) {
-  if (pct >= 80) return "text-emerald-600 dark:text-emerald-400";
-  if (pct >= 60) return "text-amber-600 dark:text-amber-400";
-  return "text-rose-600 dark:text-rose-400";
-}
-
 function StudentPanel({ student }: { student: StudentWithCourses }) {
+  const publicKey = student.public_key;
   const { t } = useLanguage();
   const [selectedCourseIdx, setSelectedCourseIdx] = useState(0);
   const selectedCourse = student.courses[selectedCourseIdx];
@@ -96,13 +90,13 @@ function StudentPanel({ student }: { student: StudentWithCourses }) {
   const getAttendanceStatusLabel = (status?: string) => {
     switch (status) {
       case "here":
-        return "Here";
+        return t.statusHere;
       case "exit":
-        return "Exit";
+        return t.statusExit;
       case "do not come":
-        return "Absent";
+        return t.statusAbsent;
       default:
-        return "No data";
+        return t.statusNoData;
     }
   };
 
@@ -121,20 +115,10 @@ function StudentPanel({ student }: { student: StudentWithCourses }) {
     ? (overallStats.total_points / overallStats.max_points) * 100
     : 0;
 
-  // Point-weighted grade %, pooled across all courses — same calculation
-  // as the student profile page (sums earned/max scored assignment points,
-  // ignoring unscored placeholders like "-" or empty strings).
-  const overallGradePctRaw = overallLmsPercentFromCourses(student.courses);
-  const overallGradePct = overallGradePctRaw ?? 0;
-  const hasGradeData = overallGradePctRaw !== null;
-
   const totalLessons = student.courses.reduce(
     (sum, c) => sum + c.attendances.length,
     0
   );
-
-  // Per-course grade % for the selected course, using the same validated logic.
-  const selectedCourseGradePct = courseLmsPercent(selectedCourse);
 
   return (
     <AccordionItem
@@ -223,27 +207,6 @@ function StudentPanel({ student }: { student: StudentWithCourses }) {
               </span>
             </div>
 
-            {/* Overall Grade % */}
-            <div className="flex flex-col items-end gap-0.5">
-              {hasGradeData ? (
-                <span
-                  className={cn(
-                    "text-sm font-bold tabular-nums",
-                    GradePctColor(overallGradePct)
-                  )}
-                >
-                  {overallGradePct.toFixed(1)}%
-                </span>
-              ) : (
-                <span className="text-sm font-bold tabular-nums text-muted-foreground">
-                  n/a
-                </span>
-              )}
-              <span className="text-[10px] text-muted-foreground leading-none">
-                Grade
-              </span>
-            </div>
-
             {/* Total lessons across all courses */}
             <div className="flex flex-col items-end gap-0.5">
               <span className="text-sm font-semibold tabular-nums">
@@ -256,7 +219,7 @@ function StudentPanel({ student }: { student: StudentWithCourses }) {
 
             {/* Profile Link */}
             <a
-              href={`/students/${student.student_id}`}
+              href={publicKey ? `/${publicKey}` : "#"}
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
@@ -302,7 +265,7 @@ function StudentPanel({ student }: { student: StudentWithCourses }) {
           {/* Profile Link Button (Mobile) */}
           <div className="sm:hidden px-4 py-3 border-b">
             <a
-              href={`/students/${student.student_id}`}
+              href={publicKey ? `/${publicKey}` : "#"}
               target="_blank"
               rel="noopener noreferrer"
               className="w-full inline-block"
@@ -347,18 +310,18 @@ function StudentPanel({ student }: { student: StudentWithCourses }) {
 
           {/* Progress bars */}
           <div className="px-4 py-3 bg-muted/20 flex flex-wrap gap-x-6 gap-y-2">
-            {selectedCourse.echo_grades && selectedCourseGradePct !== null && (
+            {selectedCourse.echo_grades && (
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                   Grade
                 </span>
 
                 <MiniProgressBar
-                  pct={selectedCourseGradePct}
+                  pct={selectedCourse.echo_grades.percentage}
                   color={
-                    selectedCourseGradePct >= 80
+                    selectedCourse.echo_grades.percentage >= 80
                       ? "bg-emerald-500"
-                      : selectedCourseGradePct >= 60
+                      : selectedCourse.echo_grades.percentage >= 60
                         ? "bg-amber-500"
                         : "bg-rose-500"
                   }

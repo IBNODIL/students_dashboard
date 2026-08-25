@@ -1,5 +1,5 @@
-import { PrismaClient, Prisma } from "@prisma/client";
-import bcryptjs from "bcryptjs";
+import { PrismaClient } from "@prisma/client";
+import { JsonValue, InputJsonValue } from "../lib/prisma-enums";
 import { readFileSync } from "fs";
 import { join } from "path";
 import crypto from "crypto";
@@ -8,6 +8,12 @@ const prisma = new PrismaClient({
   log: ["error", "warn"],
 });
 
+type AttendanceEvent = {
+  date?: string | number | null;
+  status?: string;
+  inside?: number;
+};
+
 type AttendanceRow = {
   student_id: number;
   student_name: string;
@@ -15,7 +21,7 @@ type AttendanceRow = {
   subject_name: string;
   teacher_name: string;
   teacher_id: string;
-  attendances: any[]; // FIXED
+  attendances: AttendanceEvent[];
 };
 
 type GradeRow = {
@@ -28,7 +34,7 @@ type GradeRow = {
   total_current_grade: number;
   total_full_grade: number;
   percentage: number;
-  assignments: any[]; // FIXED
+  assignments: JsonValue[];
 };
 
 function lessonKey(
@@ -48,13 +54,13 @@ type MergedLesson = {
   teacher_name: string;
   teacher_id: string;
 
-  attendances: Prisma.JsonValue[];
+  attendances: JsonValue[];
 
   total_current_grade: number;
   total_full_grade: number;
   percentage: number;
 
-  assignments: Prisma.JsonValue[];
+  assignments: JsonValue[];
 };
 
 async function main() {
@@ -100,7 +106,7 @@ async function main() {
   // CLEAN DATABASE
   // =====================================================
 
-  function safeArrayMerge(a: any[], b: any[]) {
+  function safeArrayMerge<T>(a: T[] | undefined, b: T[] | undefined): T[] {
     return [...(a ?? []), ...(b ?? [])];
   }
 
@@ -257,7 +263,7 @@ async function main() {
       id: true,
       name: true,
     },
-  });
+  }) as Array<{ id: number; name: string }>;
 
   const groupIdByName = new Map<string, number>(
     groups.map((g) => [g.name, Number(g.id)])
@@ -274,7 +280,7 @@ async function main() {
 
   console.log("Creating students...");
 
-  const studentMap = new Map<any, string>();
+  const studentMap = new Map<number, string>();
 
   for (const row of merged.values()) {
     studentMap.set(
@@ -364,10 +370,10 @@ async function main() {
             row.percentage,
 
           assignments:
-            row.assignments as Prisma.InputJsonValue,
+            row.assignments as InputJsonValue,
 
           attendances:
-            row.attendances as Prisma.InputJsonValue,
+            row.attendances as InputJsonValue,
         };
       }),
       skipDuplicates: true,
@@ -387,8 +393,14 @@ async function main() {
 
   console.log("Processing separate attendances and student credits...");
 
-  const attendanceRecordsData: any[] = [];
-  const creditMap = new Map<number, { grades: any; totals: any }>();
+  const attendanceRecordsData: Array<{ studentId: number; inside: number; timeLog: Date | null }> = [];
+  const creditMap = new Map<
+    number,
+    {
+      grades: Record<string, JsonValue>;
+      totals: Record<string, JsonValue>;
+    }
+  >();
 
   for (const row of merged.values()) {
     const studentId = Number(row.student_id);
@@ -398,13 +410,21 @@ async function main() {
     // --- 1. Davomatlarni (Attendance) yig'ish ---
     if (row.attendances && Array.isArray(row.attendances)) {
       for (const att of row.attendances) {
-        const item = att as any; // TypeScript xatosini yo'qotish
-        if (!item) continue;
+        const item = att as AttendanceEvent | Record<string, unknown> | null;
+        if (!item || typeof item !== "object") continue;
 
-        const logDate = item.date ? new Date(item.date) : null;
+        const dateValue = (item as AttendanceEvent).date;
+        const logDate =
+          typeof dateValue === "string" || typeof dateValue === "number"
+            ? new Date(dateValue)
+            : null;
         if (logDate && isNaN(logDate.getTime())) continue;
 
-        const insideValue = item.status === "present" || item.inside === 1 ? 1 : 0;
+        const insideValue =
+          (item as AttendanceEvent).status === "present" ||
+            (item as AttendanceEvent).inside === 1
+            ? 1
+            : 0;
 
         attendanceRecordsData.push({
           studentId: studentId,
@@ -452,9 +472,9 @@ async function main() {
 
     const creditRecords = [...creditMap.entries()].map(([studentId, data]) => ({
       studentId: studentId,
-      grades: data.grades as any,
-      totals: data.totals as any,
-      byDepartment: {},
+      grades: data.grades as InputJsonValue,
+      totals: data.totals as InputJsonValue,
+      byDepartment: {} as InputJsonValue,
     }));
 
     const creditChunkSize = 200;
@@ -487,32 +507,26 @@ async function main() {
   });
 
   if (!existingUser) {
-    const userId = "admin-user-id";
-
     // Better Auth 100% taniydigan sodda va aniq hash formati:
     const salt = crypto.randomBytes(16).toString("hex");
-    const hash = crypto.pbkdf2Sync(defaultPassword, salt, 1000, 64, "sha512").toString("hex");
-    const formattedPassword = `pbkdf2.${salt}.${hash}.1000.64.sha512`;
+    crypto.pbkdf2Sync(defaultPassword, salt, 1000, 64, "sha512").toString("hex");
 
-    // // 1. User
-    // await prisma.user.create({
-    //   data: {
-    //     id: userId,
-    //     email: defaultEmail,
-    //     password: formattedPassword,
-    //     emailVerified: true,
-    //     name: "Admin",
+    // await auth.api.signUpEmail({
+    //   body: {
+    //     email: process.env.SUPERADMIN_EMAIL!,
+    //     password: process.env.SUPERADMIN_PASSWORD!,
+    //     name: "Super Admin",
     //   },
     // });
 
-    // // 2. Account
-    // await prisma.account.create({
+    // await prisma.user.update({
+    //   where: {
+    //     email: process.env.SUPERADMIN_EMAIL!,
+    //   },
     //   data: {
-    //     userId: userId,
-    //     providerId: "credential",
-    //     accountId: defaultEmail,
-    //     type: "credentials",
-    //     password: formattedPassword,
+    //     role: "SUPERADMIN",
+    //     active: true,
+    //     userNumber: 10000001,
     //   },
     // });
 

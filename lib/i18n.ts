@@ -45,6 +45,18 @@ export interface Translations {
   allPercentTypes: string;
   percentTypeAttendance: string;
   percentTypeGrades: string;
+  // Percent operator dropdown (attendance/grade % filter)
+  percentOperatorAny: string;
+  percentOperatorGreater: string;
+  percentOperatorSmaller: string;
+  labelAttendancePercent: string;
+  labelGradePercent: string;
+  placeholderRoom: string;
+  noItemsFound: string;
+  totalStudents: string;
+  statusExit: string;
+  statusHere: string;
+  statusNoData: string;
   // Stats Cards
   attendanceRate: string;
   absenceRate: string;
@@ -59,7 +71,6 @@ export interface Translations {
   // Student Panels
   loading: string;
   studentsFound: (n: number) => string;
-  pageOf: (p: number, total: number) => string;
   noStudents: string;
   noRecords: string;
   colDate: string;
@@ -73,7 +84,8 @@ export interface Translations {
   absence: string;
   lessons: string;
   attMobile: string;
-  pointsSummary: (pts: string, max: number, teacherId: string) => string;
+  pointsSummary: (points: string, maxPoints: number, teacherName: string) => string;
+  pageOf: (page: number, totalPages: number) => string;
   dateLocale: string;
 }
 
@@ -115,6 +127,17 @@ export const translations: Record<Language, Translations> = {
     percentTypeAttendance: "Attendance",
     percentTypeGrades: "Grades",
     allPercentTypes: "All types",
+    percentOperatorAny: "Any",
+    percentOperatorGreater: "Greater",
+    percentOperatorSmaller: "Smaller",
+    labelAttendancePercent: "Attendance %",
+    labelGradePercent: "Grades %",
+    placeholderRoom: "e.g. 302",
+    noItemsFound: "No items found.",
+    totalStudents: "Total students",
+    statusExit: "Exit",
+    statusHere: "Here",
+    statusNoData: "No data",
     allTimes: "All times",
     period: (n) => `Period ${n}`,
     allStatuses: "All statuses",
@@ -136,7 +159,6 @@ export const translations: Record<Language, Translations> = {
       `Unexcused absences: ${u} · No-status records: ${empty}`,
     loading: "Loading…",
     studentsFound: (n) => `${n.toLocaleString()} students`,
-    pageOf: (p, total) => `Page ${p} of ${total}`,
     noStudents: "No students found. Try adjusting your filters.",
     noRecords: "No attendance records",
     colDate: "Date",
@@ -150,8 +172,9 @@ export const translations: Record<Language, Translations> = {
     absence: "absence",
     lessons: "lessons",
     attMobile: "att.",
-    pointsSummary: (pts, max, teacherName) =>
-      `Points: ${pts} / ${max} max · Teacher Name: ${teacherName}`,
+    pointsSummary: (points, maxPoints, teacherName) =>
+      points + " / " + maxPoints + " points · Teacher: " + teacherName,
+    pageOf: (page, totalPages) => "Page " + page + " of " + totalPages,
     dateLocale: "en-GB",
   },
 
@@ -192,6 +215,17 @@ export const translations: Record<Language, Translations> = {
     percentTypeAttendance: "Davomat",
     percentTypeGrades: "Baholar",
     allPercentTypes: "Barcha turlar",
+    percentOperatorAny: "Har qanday",
+    percentOperatorGreater: "Kattaroq",
+    percentOperatorSmaller: "Kichikroq",
+    labelAttendancePercent: "Davomat %",
+    labelGradePercent: "Baholar %",
+    placeholderRoom: "mas. 302",
+    noItemsFound: "Elementlar topilmadi.",
+    totalStudents: "Jami talabalar",
+    statusExit: "Chiqdi",
+    statusHere: "Keldi",
+    statusNoData: "Maʼlumot yo'q",
     allTimes: "Barcha vaqtlar",
     period: (n) => `${n}-dars`,
     allStatuses: "Barcha holatlar",
@@ -213,7 +247,6 @@ export const translations: Record<Language, Translations> = {
       `Uzrsiz yo'qlamalar: ${u} · Holatsiz yozuvlar: ${empty}`,
     loading: "Yuklanmoqda…",
     studentsFound: (n) => `${n.toLocaleString()} talaba`,
-    pageOf: (p, total) => `${p}/${total} sahifa`,
     noStudents: "Talabalar topilmadi. Filtrlarni o'zgartiring.",
     noRecords: "Davomat yozuvlari yo'q",
     colDate: "Sana",
@@ -227,8 +260,9 @@ export const translations: Record<Language, Translations> = {
     absence: "qatnashmaslik",
     lessons: "dars",
     attMobile: "dav.",
-    pointsSummary: (pts, max, teacherId) =>
-      `Ball: ${pts} / ${max} maks. · O'qituvchi ID: ${teacherId}`,
+    pointsSummary: (points, maxPoints, teacherName) =>
+      points + " / " + maxPoints + " ball · O'qituvchi: " + teacherName,
+    pageOf: (page, totalPages) => page + "-sahifa / " + totalPages,
     dateLocale: "uz-UZ",
   },
 
@@ -269,6 +303,17 @@ export const translations: Record<Language, Translations> = {
     percentTypeAttendance: "出席",
     percentTypeGrades: "成績",
     allPercentTypes: "すべてのタイプ",
+    percentOperatorAny: "すべて",
+    percentOperatorGreater: "以上",
+    percentOperatorSmaller: "未満",
+    labelAttendancePercent: "出席 %",
+    labelGradePercent: "成績 %",
+    placeholderRoom: "例: 302",
+    noItemsFound: "見つかりません。",
+    totalStudents: "総学生数",
+    statusExit: "退出",
+    statusHere: "在室",
+    statusNoData: "データなし",
     allTimes: "全時限",
     period: (n) => `第${n}時限`,
     allStatuses: "全状態",
@@ -290,7 +335,6 @@ export const translations: Record<Language, Translations> = {
       `無断欠席: ${u} · 状態なし: ${empty}`,
     loading: "読込中…",
     studentsFound: (n) => `${n.toLocaleString()} 名`,
-    pageOf: (p, total) => `ページ ${p} / ${total}`,
     noStudents: "学生が見つかりません。検索条件を変更してください。",
     noRecords: "出席記録がありません",
     colDate: "日付",
@@ -304,8 +348,9 @@ export const translations: Record<Language, Translations> = {
     absence: "欠席",
     lessons: "授業",
     attMobile: "出.",
-    pointsSummary: (pts, max, teacherId) =>
-      `ポイント: ${pts} / ${max} 最大 · 教員ID: ${teacherId}`,
+    pointsSummary: (points, maxPoints, teacherName) =>
+      points + " / " + maxPoints + " 点 · 教員: " + teacherName,
+    pageOf: (page, totalPages) => page + " / " + totalPages + " ページ",
     dateLocale: "ja-JP",
   },
 
@@ -346,6 +391,17 @@ export const translations: Record<Language, Translations> = {
     percentTypeAttendance: "Посещаемость",
     percentTypeGrades: "Оценки",
     allPercentTypes: "Все типы",
+    percentOperatorAny: "Любой",
+    percentOperatorGreater: "Больше",
+    percentOperatorSmaller: "Меньше",
+    labelAttendancePercent: "Посещаемость %",
+    labelGradePercent: "Оценки %",
+    placeholderRoom: "напр. 302",
+    noItemsFound: "Ничего не найдено.",
+    totalStudents: "Всего студентов",
+    statusExit: "Вышел",
+    statusHere: "Здесь",
+    statusNoData: "Нет данных",
     allTimes: "Все периоды",
     period: (n) => `${n}-пара`,
     allStatuses: "Все статусы",
@@ -367,7 +423,6 @@ export const translations: Record<Language, Translations> = {
       `Неуважительные пропуски: ${u} · Без статуса: ${empty}`,
     loading: "Загрузка…",
     studentsFound: (n) => `Студентов: ${n.toLocaleString()}`,
-    pageOf: (p, total) => `Страница ${p} из ${total}`,
     noStudents: "Студенты не найдены. Попробуйте изменить фильтры.",
     noRecords: "Нет записей о посещаемости",
     colDate: "Дата",
@@ -381,8 +436,9 @@ export const translations: Record<Language, Translations> = {
     absence: "пропуски",
     lessons: "занятия",
     attMobile: "пос.",
-    pointsSummary: (pts, max, teacherId) =>
-      `Баллы: ${pts} / ${max} макс. · ID преподавателя: ${teacherId}`,
+    pointsSummary: (points, maxPoints, teacherName) =>
+      points + " / " + maxPoints + " баллов · Преподаватель: " + teacherName,
+    pageOf: (page, totalPages) => "Страница " + page + " из " + totalPages,
     dateLocale: "ru-RU",
   }
 }

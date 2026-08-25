@@ -1,0 +1,16 @@
+
+> students-dashboard@0.1.0 start E:\students-dashboard
+> node .next/standalone/server.js
+
+▲ Next.js 16.3.0
+- Local:         http://localhost:3000
+- Network:       http://0.0.0.0:3000
+✓ Ready in 0ms
+✓ Running next.config took 15ms
+prisma:error 
+Invalid `prisma.lesson.findMany()` invocation:
+
+
+The column `students.phone` does not exist in the current database.
+prisma:error Error in PostgreSQL connection: Error { kind: Closed, cause: None }
+prisma:error Error in PostgreSQL connection: Error { kind: Closed, cause: None }

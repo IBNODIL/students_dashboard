@@ -12,6 +12,7 @@ export interface Student {
   subject_name: string
   teacher_name: string
   teacher_id: string
+  public_key?: string | null
 
   // ADD THESE:
   totalCurrentGrade?: number
@@ -26,6 +27,7 @@ export interface FlatRecord {
   student_id: number
   student_name: string
   group_name: string
+  public_key?: string | null
   subject_name: string
   teacher_name: string
   teacher_id: string
@@ -127,6 +129,7 @@ export interface StudentWithCourses {
   student_id: number
   student_name: string
   group_name: string
+  public_key?: string | null
   courses: Course[]
   gradesData?: {
     grades: { [department: string]: { [courseName: string]: string } }

@@ -1,7 +1,7 @@
 import { getPrisma } from "@/lib/prisma";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const prisma = getPrisma();
     // Get all students with their latest attendance record

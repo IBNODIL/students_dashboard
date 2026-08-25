@@ -21,6 +21,7 @@ interface ComboboxProps {
   items: string[]
   value?: string
   onValueChange?: (value: string) => void
+  onOpenChange?: (open: boolean) => void
   className?: string
   children: React.ReactNode
 }
@@ -29,12 +30,20 @@ function Combobox({
   items,
   value,
   onValueChange,
+  onOpenChange,
   className,
   children,
 }: ComboboxProps) {
   const rootRef = React.useRef<HTMLDivElement>(null)
   const [internalValue, setInternalValue] = React.useState("")
   const [open, setOpen] = React.useState(false)
+  const lastReportedOpen = React.useRef(open)
+
+  React.useEffect(() => {
+    if (lastReportedOpen.current === open) return
+    lastReportedOpen.current = open
+    onOpenChange?.(open)
+  }, [open, onOpenChange])
 
   const query = value ?? internalValue
 
@@ -112,7 +121,7 @@ function ComboboxInput(
     props.onChange?.(event)
   }
 
-  const handleBlur = () => {
+  const handleBlur = (event: React.FocusEvent<HTMLInputElement>) => {
     const isExactMatch = items.some(
       (item) => item.trim().toLowerCase() === query.trim().toLowerCase()
     )
@@ -121,16 +130,22 @@ function ComboboxInput(
       setQuery("")
     }
     setOpen(false)
+    props.onBlur?.(event)
+  }
+
+  const handleFocus = (event: React.FocusEvent<HTMLInputElement>) => {
+    setOpen(true)
+    props.onFocus?.(event)
   }
 
   return (
     <Input
+      {...props}
       autoComplete="off"
       value={props.value ?? query}
       onChange={handleChange}
       onBlur={handleBlur}
-      onFocus={() => setOpen(true)}
-      {...props}
+      onFocus={handleFocus}
     />
   )
 }
