@@ -18,7 +18,13 @@ async function getNextUserNumber(prisma: ReturnType<typeof getPrisma>, role: Rol
 
   const field = counterFieldMap[role];
 
-  return prisma.$transaction(async (tx: { $executeRawUnsafe: (...args: unknown[]) => Promise<unknown>; $queryRawUnsafe: <T>(query: string, ...args: unknown[]) => Promise<T>; systemCounter: { update: (args: unknown) => Promise<unknown> } }) => {
+  // Let TypeScript infer `tx` from the `$transaction` overload instead of
+  // hand-annotating it — a hand-rolled tx type doesn't structurally match
+  // `Prisma.TransactionClient`, which makes TS fail to resolve the
+  // interactive-transaction overload of `$transaction` at all (the error
+  // then cascades to every place that consumes this function's result,
+  // e.g. the `userNumber` field further down in this file).
+  return prisma.$transaction(async (tx) => {
     await tx.$executeRawUnsafe(
       `INSERT INTO "SystemCounter" ("id", "nextSuperAdmin", "nextAdmin", "nextTeacher", "nextStudent") VALUES (1, 10000001, 20000001, 30000001, 40000001) ON CONFLICT ("id") DO NOTHING`
     );
@@ -220,13 +226,7 @@ export async function POST(req: NextRequest) {
           ? {
             teacherId,
           }
-          : {}),
-
-        ...(role === "STUDENT"
-          ? {
-            studentId,
-          }
-          : {}),
+          : {})
       },
       select: {
         id: true,

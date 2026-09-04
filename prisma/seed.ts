@@ -1,5 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-import { JsonValue, InputJsonValue } from "../lib/prisma-enums";
+import { PrismaClient, Prisma } from "@prisma/client";
 import { readFileSync } from "fs";
 import { join } from "path";
 import crypto from "crypto";
@@ -34,7 +33,7 @@ type GradeRow = {
   total_current_grade: number;
   total_full_grade: number;
   percentage: number;
-  assignments: JsonValue[];
+  assignments: Prisma.JsonValue[];
 };
 
 function lessonKey(
@@ -54,13 +53,13 @@ type MergedLesson = {
   teacher_name: string;
   teacher_id: string;
 
-  attendances: JsonValue[];
+  attendances: Prisma.JsonValue[];
 
   total_current_grade: number;
   total_full_grade: number;
   percentage: number;
 
-  assignments: JsonValue[];
+  assignments: Prisma.JsonValue[];
 };
 
 async function main() {
@@ -370,10 +369,10 @@ async function main() {
             row.percentage,
 
           assignments:
-            row.assignments as InputJsonValue,
+            row.assignments as Prisma.InputJsonValue,
 
           attendances:
-            row.attendances as InputJsonValue,
+            row.attendances as Prisma.InputJsonValue,
         };
       }),
       skipDuplicates: true,
@@ -397,8 +396,8 @@ async function main() {
   const creditMap = new Map<
     number,
     {
-      grades: Record<string, JsonValue>;
-      totals: Record<string, JsonValue>;
+      grades: Record<string, Prisma.JsonValue>;
+      totals: Record<string, Prisma.JsonValue>;
     }
   >();
 
@@ -472,9 +471,9 @@ async function main() {
 
     const creditRecords = [...creditMap.entries()].map(([studentId, data]) => ({
       studentId: studentId,
-      grades: data.grades as InputJsonValue,
-      totals: data.totals as InputJsonValue,
-      byDepartment: {} as InputJsonValue,
+      grades: data.grades as Prisma.InputJsonValue,
+      totals: data.totals as Prisma.InputJsonValue,
+      byDepartment: {} as Prisma.InputJsonValue,
     }));
 
     const creditChunkSize = 200;
